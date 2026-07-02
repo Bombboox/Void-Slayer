@@ -1,0 +1,11 @@
+{
+  "name": "void-slayer",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Roguelike/platformer with a WebGL2 renderer.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

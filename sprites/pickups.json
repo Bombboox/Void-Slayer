@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "pickups.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "columns": 4,
+    "rows": 2,
+    "frameCount": 8,
+    "format": "keyframes",
+    "rowLabels": [
+      "heart",
+      "coin"
+    ],
+    "rowFrameCounts": [
+      4,
+      4
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "heart",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 2,
+          "width": 16,
+          "height": 14
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 1,
+      "col": 1,
+      "row": 0,
+      "action": "heart",
+      "hitboxes": [
+        {
+          "x": 2,
+          "y": 2,
+          "width": 13,
+          "height": 14
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 2,
+      "col": 2,
+      "row": 0,
+      "action": "heart",
+      "hitboxes": [
+        {
+          "x": 6,
+          "y": 2,
+          "width": 4,
+          "height": 14
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 3,
+      "col": 3,
+      "row": 0,
+      "action": "heart",
+      "hitboxes": [
+        {
+          "x": 1,
+          "y": 2,
+          "width": 13,
+          "height": 14
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 4,
+      "col": 0,
+      "row": 1,
+      "action": "coin",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 16,
+          "height": 16
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 5,
+      "col": 1,
+      "row": 1,
+      "action": "coin",
+      "hitboxes": [
+        {
+          "x": 2,
+          "y": 0,
+          "width": 13,
+          "height": 16
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 6,
+      "col": 2,
+      "row": 1,
+      "action": "coin",
+      "hitboxes": [
+        {
+          "x": 6,
+          "y": 0,
+          "width": 4,
+          "height": 16
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 7,
+      "col": 3,
+      "row": 1,
+      "action": "coin",
+      "hitboxes": [
+        {
+          "x": 1,
+          "y": 0,
+          "width": 13,
+          "height": 16
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

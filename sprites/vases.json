@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "vases.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "columns": 5,
+    "rows": 1,
+    "frameCount": 5,
+    "format": "keyframes",
+    "rowLabels": [
+      ""
+    ],
+    "rowFrameCounts": [
+      5
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}
