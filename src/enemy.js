@@ -67,6 +67,7 @@ export function createEnemy(type, x, y, sprite, extra) {
     attackCooldown: 0,
     hp: maxHp,
     maxHp,
+    powerMult: 1, // HP/damage scaling set at spawn from the player's level
     hitFlash: 0, // seconds remaining of the "lit up when hit" flash
     boxes: null, // per-frame cached world-space boxes (see enemyBoxes)
     ...extra,
@@ -293,6 +294,7 @@ function spawnPlasma(e, player, shots) {
     vx: dx * C.PLASMA_SPEED,
     vy: dy * C.PLASMA_SPEED,
     life: C.PLASMA_LIFETIME,
+    powerMult: e.powerMult, // carries the shooter's damage scaling
   });
 }
 

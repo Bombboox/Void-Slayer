@@ -2,7 +2,7 @@ import * as C from "./constants.js";
 import { collidesWithTiles, overlaps } from "./collision.js";
 import { createPlayer, updatePlayer, spendPoint, applyStats, STAT_KEYS, ITEM_TYPES } from "./player.js";
 import { createDamageNumbers, addDamageNumber, addHealNumber, updateDamageNumbers, drawDamageNumbers } from "./damagenumbers.js";
-import { spawnDrops, updatePickups } from "./pickups.js";
+import { spawnDrops, dropPickups, dropItem, updatePickups } from "./pickups.js";
 import { initInput, pollInput, consumeReset } from "./input.js";
 import { Renderer } from "./renderer.js";
 import * as W from "./world.js";
@@ -70,6 +70,8 @@ const SFX = {
   vase2: "./sounds/effects/vase_2.wav",
   vase3: "./sounds/effects/vase_3.wav",
   vase4: "./sounds/effects/vase_4.wav",
+  keyPickup: "./sounds/effects/key_pickup.wav",
+  chestUnlock: "./sounds/effects/chest_unlock.mp3",
 };
 const VASE_SFX = [SFX.vase1, SFX.vase2, SFX.vase3, SFX.vase4];
 for (const url of Object.values(SFX)) preloadSound(url);
@@ -89,6 +91,7 @@ window.addEventListener("keydown", (e) => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen().catch(() => {});
   }
+  if (e.code === "KeyV" && !menuOpen) tryOpenChest(); // open a nearby chest
 });
 
 // ── Menu input: stats via keyboard OR mouse; items via drag-and-drop ──────────
@@ -211,9 +214,10 @@ loadImage("./sprites/stats.png").then((img) => { statsImg = img; });
 let healthImg = null;
 loadImage("./sprites/health.png").then((img) => { healthImg = img; });
 
-// Item icons (32x32 rows, one per ITEM_TYPES entry) for the inventory UI (2D).
-let itemsImg = null;
-loadImage("./sprites/items.png").then((img) => { itemsImg = img; });
+// Item icons (32x32 rows, one per ITEM_TYPES entry): an Image for the 2D inventory
+// UI, plus a GL texture for item pickups dropped in the world.
+let itemsImg = null, itemsTex = null;
+loadImage("./sprites/items.png").then((img) => { itemsImg = img; itemsTex = renderer.createTexture(img); });
 
 // Pickups (heart/coin, 16x16 anim) and breakable props (vases, animated torch).
 let pickupsSprite = null;
@@ -229,6 +233,14 @@ loadSprite("./sprites/vases.json", "./sprites/vases.png").then((s) => {
 const TORCH_FRAMES = 8, TORCH_FPS = 10;
 let torchTex = null;
 loadImage("./sprites/torch.png").then((img) => { torchTex = renderer.createTexture(img); });
+
+// Chests (silver/gold, 5-frame open animation each).
+const CHEST_FPS = 12;
+let chestSprite = null;
+loadSprite("./sprites/chest.json", "./sprites/chest.png").then((s) => {
+  s.tex = renderer.createTexture(s.image);
+  chestSprite = s;
+});
 
 // Floating damage numbers and loose pickups.
 const dmgfx = createDamageNumbers();
@@ -277,6 +289,15 @@ function spawnEnemies(room) {
     const x = room.origin.x + col * C.TILE;
     const y = floorTop - (4 + Math.random() * 3) * C.TILE;
     list.push(createEyefly(x, y, sprites.eyefly, room));
+  }
+
+  // Scale strength with the player's level (+20% HP & damage per level). Locked in
+  // at spawn, so a room's enemies keep their difficulty when you leave and return.
+  const mult = 1 + C.ENEMY_SCALE_PER_LEVEL * player.level;
+  for (const e of list) {
+    e.hp *= mult;
+    e.maxHp *= mult;
+    e.powerMult = mult;
   }
   return list;
 }
@@ -372,10 +393,17 @@ function updateBullets(dt) {
   if (brokeProp) cur.breakables = cur.breakables.filter((k) => k.hp > 0); // persist shatters
   // Burst EXP particles from any enemy that just died, then remove the slain.
   const alive = [];
+  let lastDead = null;
   for (const e of enemies) {
     if (e.hp > 0) { alive.push(e); continue; }
     const bb = e.sprite.bodyBox;
     burstExp(expfx, e.x + bb.w / 2, e.y + bb.h / 2, C.EXP_REWARD[e.type] ?? 20);
+    lastDead = e;
+  }
+  // Clearing the room: the last enemy drops silver-chest-equivalent loot.
+  if (lastDead && alive.length === 0) {
+    const bb = lastDead.sprite.bodyBox;
+    silverLoot(lastDead.x + bb.w / 2, lastDead.y + bb.h / 2);
   }
   enemies = alive;
   if (cur.enemies) cur.enemies = enemies; // persist the deaths on the room
@@ -405,13 +433,72 @@ function knockbackPlayer(box, dmg) {
   }
 }
 
-// Collect a pickup: coins bank as currency; hearts restore 10% of max HP.
-function collectPickup(kind) {
-  if (kind === "coin") { player.coins++; playSound(SFX.coin, 0.5, 0.1); }
-  else if (kind === "heart") {
+const ri = (a, b) => a + ((Math.random() * (b - a + 1)) | 0);
+// Hearts/keys are rarer, so each rolled unit only actually drops part of the time.
+function dropRare(kind, cx, cy, n) {
+  for (let i = 0; i < n; i++) if (Math.random() < C.HEART_KEY_KEEP) dropPickups(pickups, kind, 1, cx, cy);
+}
+// Drop `n` random equippable items as pickups.
+function dropItemPickups(cx, cy, n) {
+  for (let i = 0; i < n; i++) dropItem(pickups, (Math.random() * ITEM_TYPES.length) | 0, cx, cy);
+}
+
+// Everything pops out as pickups the player must collect (items included).
+function silverLoot(cx, cy) {
+  dropPickups(pickups, "coin", ri(0, 3), cx, cy);
+  const r = Math.random();
+  if (r >= 0.5) { // top 50%: also hearts + keys
+    dropRare("heart", cx, cy, ri(0, 2));
+    dropRare("key", cx, cy, ri(0, 2));
+    if (r >= 0.95) dropItemPickups(cx, cy, 1); // top 5%: + an item
+  }
+}
+function goldLoot(cx, cy) {
+  dropPickups(pickups, "coin", ri(2, 5), cx, cy);
+  // Gold chests are exempt from the heart/key rarity reduction — full amounts.
+  dropPickups(pickups, "heart", ri(1, 3), cx, cy);
+  dropPickups(pickups, "key", ri(0, 1), cx, cy);
+  if (Math.random() < 0.5) dropItemPickups(cx, cy, ri(1, 2)); // half the time also items
+}
+function chestLoot(c) {
+  const cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+  if (c.kind === "silver") silverLoot(cx, cy); else goldLoot(cx, cy);
+}
+
+// V opens the current room's chest if the player is beside it. Gold needs a key.
+function tryOpenChest() {
+  const c = cur.chest;
+  if (!c || c.opened) return;
+  const pcx = player.x + C.PW / 2, pcy = player.y + C.PH / 2;
+  if (Math.hypot(pcx - (c.x + c.w / 2), pcy - (c.y + c.h / 2)) > 74) return;
+  if (c.kind === "gold") {
+    if (player.keys <= 0) return; // locked — need a key
+    player.keys--;
+  }
+  c.opened = true; c.animT = 0;
+  playSound(SFX.chestUnlock, 0.6);
+  chestLoot(c);
+}
+
+// Collect a pickup. Returns false if it can't be taken right now (item + full
+// inventory), so it stays on the ground. Coins/keys bank; hearts heal 10% max HP;
+// items go to the first free inventory slot.
+function collectPickup(p) {
+  if (p.kind === "coin") { player.coins++; playSound(SFX.coin, 0.5, 0.1); return true; }
+  if (p.kind === "key") { player.keys++; playSound(SFX.keyPickup, 0.6, 0.08); return true; }
+  if (p.kind === "heart") {
     player.hp = Math.min(player.maxHp, player.hp + 0.1 * player.maxHp);
     playSound(SFX.health, 0.6);
+    return true;
   }
+  if (p.kind === "item") {
+    const slot = player.inventory.indexOf(null);
+    if (slot === -1) return false; // inventory full — leave it on the ground
+    player.inventory[slot] = p.itemType;
+    playSound(SFX.coin, 0.5, 0.1);
+    return true;
+  }
+  return true;
 }
 
 function updateEnemies(dt) {
@@ -438,7 +525,7 @@ function updateEnemies(dt) {
       const box = [...hurt, ...hit].find((b) =>
         overlaps(player.x, player.y, C.PW, C.PH, b.x, b.y, b.w, b.h)
       );
-      if (box) { knockbackPlayer(box, C.DMG_ENEMY_TOUCH); break; }
+      if (box) { knockbackPlayer(box, C.DMG_ENEMY_TOUCH * e.powerMult); break; }
     }
   }
 }
@@ -456,7 +543,7 @@ function updateEnemyShots(dt) {
   if (player.invuln <= 0) {
     for (const s of enemyShots) {
       if (overlaps(player.x, player.y, C.PW, C.PH, s.x, s.y, sz, sz)) {
-        knockbackPlayer({ x: s.x, y: s.y, w: sz, h: sz }, C.DMG_PLASMA);
+        knockbackPlayer({ x: s.x, y: s.y, w: sz, h: sz }, C.DMG_PLASMA * (s.powerMult ?? 1));
         s.life = 0;
         break;
       }
@@ -638,14 +725,47 @@ function drawProps(room) {
   }
 }
 
-// Loose coins/hearts, animated, with a small colored glow.
+// The room's chest (if any). Plays its open animation once opened; gold/silver
+// each cast a subtly colored glow so they stand out.
+function drawChest(room) {
+  const c = room.chest;
+  if (!c || !chestSprite) return;
+  const clip = chestSprite.clips[c.kind];
+  const fi = c.opened ? Math.min(clip.count - 1, (c.animT * CHEST_FPS) | 0) : 0;
+  const f = clip.frames[fi];
+  // Subtle periodic glint while closed (same as vases), so it reads as lootable.
+  let tint = null;
+  if (!c.opened) {
+    const glint = Math.pow(Math.max(0, Math.sin((gameClock + c.phase) * 1.4)), 12) * 0.5;
+    if (glint > 0.01) tint = [1, 1, 1, glint];
+  }
+  renderer.drawSprite(chestSprite.tex, c.x, c.y, c.w, c.h, f.u0, f.v0, f.u1, f.v1, false, tint);
+  // Soft pulsating glow in the chest's color.
+  const glow = c.kind === "gold" ? [1.0, 0.82, 0.3] : [0.75, 0.82, 0.95];
+  const pulse = 0.78 + 0.22 * Math.sin((gameClock + c.phase) * 2.2);
+  renderer.addLight(c.x + c.w / 2, c.y + c.h / 2 + 6, 74, glow, (c.opened ? 0.25 : 0.55) * pulse);
+}
+
+// Loose coins/hearts/keys/items, animated, with a small colored glow.
 function drawPickups() {
   if (!pickupsSprite) return;
   for (const p of pickups) {
-    const clip = pickupsSprite.clips[p.kind];
+    if (p.kind === "item") { // equippable item — its own icon sheet + purple glow
+      if (!itemsTex) continue;
+      const ds = 26;
+      const v0 = (p.itemType * 32) / 224, v1 = (p.itemType * 32 + 32) / 224;
+      renderer.drawSprite(itemsTex, p.x - ds / 2, p.y - ds / 2, ds, ds, 0, v0, 1, v1);
+      renderer.addLight(p.x, p.y, 30, [0.75, 0.55, 1.0], 0.7);
+      continue;
+    }
+    // The heart pickup uses the "health" row label in pickups.json.
+    const clip = pickupsSprite.clips[p.kind === "heart" ? "health" : p.kind];
     const f = clip.frames[((p.animTime * 8) | 0) % clip.count];
-    renderer.drawSprite(pickupsSprite.tex, p.x - 8, p.y - 8, 16, 16, f.u0, f.v0, f.u1, f.v1);
-    const col = p.kind === "coin" ? [1.0, 0.82, 0.3] : [1.0, 0.35, 0.45];
+    const ds = p.kind === "key" ? 24 : 16; // keys drop 1.5x larger
+    renderer.drawSprite(pickupsSprite.tex, p.x - ds / 2, p.y - ds / 2, ds, ds, f.u0, f.v0, f.u1, f.v1);
+    const col = p.kind === "coin" ? [1.0, 0.82, 0.3]
+      : p.kind === "key" ? [1.0, 0.9, 0.45]
+      : [1.0, 0.35, 0.45];
     renderer.addLight(p.x, p.y, 24, col, 0.55);
   }
 }
@@ -675,6 +795,7 @@ function render() {
 
   if (!transition) {
     drawProps(cur);
+    drawChest(cur);
 
     for (const e of enemies) {
       drawEnemy(renderer, e);
@@ -740,30 +861,77 @@ function drawUI() {
     // Vial keeps its native 36x60 aspect, scaled to the screen; bottom-left.
     const vh = Math.max(84, Math.min(150, uiCanvas.clientHeight * 0.2));
     const vw = vh * (healthImg.width / healthImg.height);
-    drawHealthBar(uiCtx, healthbar, 18, uiCanvas.clientHeight - vh - 18, vw, vh, healthImg);
+    const vx = 18, vy = uiCanvas.clientHeight - vh - 18;
+    drawHealthBar(uiCtx, healthbar, vx, vy, vw, vh, healthImg);
+    // Temporary: current HP over the vial, centered.
+    uiCtx.save();
+    uiCtx.font = 'bold 35px "Courier New", ui-monospace, monospace';
+    uiCtx.textAlign = "center"; uiCtx.textBaseline = "middle";
+    uiCtx.lineJoin = "round"; uiCtx.lineWidth = 3;
+    uiCtx.restore();
   }
   drawMinimap(uiCtx);
   drawExpBar(uiCtx);
   if (lastView) drawDamageNumbers(uiCtx, dmgfx, projectToScreen, statsImg);
+  drawChestPrompt(uiCtx);
   drawCoins(uiCtx);
   drawHamburger(uiCtx);
   if (menuOpen) drawMenu(uiCtx);
 }
 
-// Coin counter, center-left: the coin icon (first coin frame) + the amount.
+// "V" prompt above a nearby unopened chest; gold chests also show a key symbol.
+function drawChestPrompt(ctx) {
+  const c = cur.chest;
+  if (!c || c.opened || !lastView || menuOpen) return;
+  const pcx = player.x + C.PW / 2, pcy = player.y + C.PH / 2;
+  if (Math.hypot(pcx - (c.x + c.w / 2), pcy - (c.y + c.h / 2)) > 74) return;
+  const s = projectToScreen(c.x + c.w / 2, c.y);
+  const y = s.sy - 8;
+  const gold = c.kind === "gold";
+
+  ctx.save();
+  ctx.font = 'bold 16px "Courier New", ui-monospace, monospace';
+  ctx.textBaseline = "bottom";
+  ctx.lineJoin = "round"; ctx.lineWidth = 3;
+  const vW = ctx.measureText("V").width;
+  const iconSz = 16, gap = 5;
+  const showKey = gold && pickupsSprite;
+  const totalW = vW + (showKey ? gap + iconSz : 0);
+  const startX = s.sx - totalW / 2;
+
+  ctx.textAlign = "left";
+  ctx.strokeStyle = "rgba(0,0,0,0.9)";
+  ctx.strokeText("V", startX, y);
+  ctx.fillStyle = gold ? "#ffd23c" : "#dfe8f5";
+  ctx.fillText("V", startX, y);
+  if (showKey) { // key symbol (first key frame: pickups row 2), raised 1/4 to align with the V
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(pickupsSprite.image, 0, 32, 16, 16, startX + vW + gap, y - iconSz - iconSz / 4, iconSz, iconSz);
+  }
+  ctx.restore();
+}
+
+// Currency counters, center-left: coins, then keys beneath. Icons are the first
+// frame of each pickup's animation (coin row 1, key row 2 in pickups.png).
 function drawCoins(ctx) {
   if (!pickupsSprite) return;
-  const icon = 22, x = 16, y = uiCanvas.clientHeight / 2;
+  const img = pickupsSprite.image;
+  const icon = 22, x = 16, cy = uiCanvas.clientHeight / 2;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(pickupsSprite.image, 0, 16, 16, 16, x, y - icon / 2, icon, icon);
   ctx.font = 'bold 17px "Courier New", ui-monospace, monospace';
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.lineJoin = "round"; ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(0,0,0,0.9)";
-  ctx.strokeText(String(player.coins), x + icon + 6, y + 1);
-  ctx.fillStyle = "#ffd23c";
-  ctx.fillText(String(player.coins), x + icon + 6, y + 1);
+
+  const row = (srcY, amount, color, ry, off) => {
+    ctx.drawImage(img, 0, srcY, 16, 16, x, ry - icon / 2 - off, icon, icon);
+    ctx.strokeStyle = "rgba(0,0,0,0.9)";
+    ctx.strokeText(String(amount), x + icon + 6, ry + 1);
+    ctx.fillStyle = color;
+    ctx.fillText(String(amount), x + icon + 6, ry + 1);
+  };
+  row(16, player.coins, "#ffd23c", cy, 0);                    // coins (row 1), centered
+  row(32, player.keys, "#e8c760", cy + icon + 8, icon / 4);   // keys (row 2), raised 1/4
   ctx.restore();
 }
 
@@ -1197,6 +1365,7 @@ function frame(now) {
       pickups = updatePickups(pickups, dt, cur.tiles, player, collectPickup);
       updateExpParticles(expfx, dt, player.x + C.PW / 2, player.y + C.PH / 2, grantExp);
       updateDamageNumbers(dmgfx, dt);
+      if (cur.chest && cur.chest.opened) cur.chest.animT += dt; // play the open anim
       checkExit();
       gameClock += dt; // drives torch/vase animation (frozen while paused)
     }

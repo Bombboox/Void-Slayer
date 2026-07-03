@@ -64,6 +64,7 @@ export function createPlayer(x, y) {
     level: 0,
     exp: 0,
     coins: 0,
+    keys: 0,
     skillPoints: 0,
     stats: { attack: 0, health: 0, armor: 0, crit: 0, speed: 0 },
 

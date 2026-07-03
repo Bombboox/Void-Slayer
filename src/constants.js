@@ -16,11 +16,18 @@ export const DMG_ENEMY_TOUCH = 14;   // touching an enemy's body/attack box
 export const DMG_PLASMA      = 10;   // a deepblue plasma ball
 export const BULLET_DAMAGE   = 10;   // the player's own shots, dealt to enemies
 
+// Enemies scale linearly with the player's level: +10% HP and damage per level.
+export const ENEMY_SCALE_PER_LEVEL = 0.10;
+
 // ── Progression ───────────────────────────────────────────────────────────────
 // EXP to go from level x to x+1 is 100 * 1.15^x (levels start at 0).
 export const EXP_BASE   = 100;
 export const EXP_GROWTH = 1.15;
 export const EXP_REWARD = { lilguy: 22, eyefly: 26, deepblue: 45 };
+
+// Hearts and keys are made ~2.5x rarer than their rolled amounts (from every
+// source): each unit only actually drops this fraction of the time.
+export const HEART_KEY_KEEP = 0.4;
 
 // ── Stats (skill points) ──────────────────────────────────────────────────────
 // Each level grants 5 points, spent across 5 stats. Increments are deliberately

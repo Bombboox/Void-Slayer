@@ -285,6 +285,7 @@ export function generateRoomTiles(room) {
   room.spawnCols = computeSpawnCols(grid); // open floor spots for enemy spawning
   room.debris = computeDebris(grid);       // decorative ground clutter
   room.breakables = computeBreakables(grid, room.origin); // vases + torches
+  room.chest = computeChest(room.origin, room.spawnCols); // ~1/3 of rooms
   return gridToTiles(grid, room);
 }
 
@@ -381,6 +382,22 @@ function computeDebris(grid) {
     blocked.add((cell.col + 1) + "," + cell.row);
   }
   return out;
+}
+
+// ~1/3 of rooms get a chest, resting on the floor at an open column. ~1/3 of
+// chests are gold (need a key); the rest silver (free). 64x64, persisted so its
+// opened state survives leaving/returning.
+function computeChest(origin, spawnCols) {
+  if (spawnCols.length === 0 || Math.random() >= 1 / 3) return null;
+  const col = spawnCols[(Math.random() * spawnCols.length) | 0];
+  const floorTop = origin.y + (ROWS - 1) * TILE;
+  return {
+    kind: Math.random() < 1 / 3 ? "gold" : "silver",
+    x: origin.x + col * TILE + TILE / 2 - 32,
+    y: floorTop - 64,
+    w: 64, h: 64,
+    opened: false, animT: 0, phase: Math.random() * 4,
+  };
 }
 
 // Columns on the main floor with clear headroom above — safe, reachable places to
