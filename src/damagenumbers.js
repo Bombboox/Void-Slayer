@@ -11,9 +11,20 @@ export function addDamageNumber(sys, wx, wy, amount, crit) {
     x: wx, y: wy,
     vx: (Math.random() * 2 - 1) * 18, // slight sideways scatter
     amount: Math.max(1, Math.round(amount)),
-    crit,
+    crit, heal: false,
     life: crit ? 1.05 : 0.75,
     maxLife: crit ? 1.05 : 0.75,
+  });
+}
+
+// Green heal number, shown next to the player.
+export function addHealNumber(sys, wx, wy, amount) {
+  sys.list.push({
+    x: wx, y: wy,
+    vx: (Math.random() * 2 - 1) * 12,
+    amount: Math.max(1, Math.round(amount)),
+    crit: false, heal: true,
+    life: 0.75, maxLife: 0.75,
   });
 }
 
@@ -40,14 +51,14 @@ export function drawDamageNumbers(ctx, sys, project, statsImg) {
     // pop in fast, hold, fade out over the last 45%
     const alpha = t > 0.45 ? 1 : t / 0.45;
     const size = d.crit ? 27 : 15;
-    const txt = d.crit ? `${d.amount}!` : `${d.amount}`;
+    const txt = d.heal ? `+${d.amount}` : d.crit ? `${d.amount}!` : `${d.amount}`;
 
     ctx.globalAlpha = alpha;
     ctx.font = `bold ${size}px "Courier New", ui-monospace, monospace`;
     ctx.lineWidth = d.crit ? 4 : 3;
     ctx.strokeStyle = "rgba(0,0,0,0.9)";
     ctx.strokeText(txt, s.sx, s.sy);
-    ctx.fillStyle = d.crit ? "#ff5a3c" : "#ffe066";
+    ctx.fillStyle = d.heal ? "#5ae07a" : d.crit ? "#ff5a3c" : "#ffe066";
     ctx.fillText(txt, s.sx, s.sy);
 
     if (d.crit && statsImg) {

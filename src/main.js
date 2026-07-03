@@ -1,7 +1,7 @@
 import * as C from "./constants.js";
 import { collidesWithTiles, overlaps } from "./collision.js";
-import { createPlayer, updatePlayer, spendPoint, STAT_KEYS } from "./player.js";
-import { createDamageNumbers, addDamageNumber, updateDamageNumbers, drawDamageNumbers } from "./damagenumbers.js";
+import { createPlayer, updatePlayer, spendPoint, applyStats, STAT_KEYS, ITEM_TYPES } from "./player.js";
+import { createDamageNumbers, addDamageNumber, addHealNumber, updateDamageNumbers, drawDamageNumbers } from "./damagenumbers.js";
 import { spawnDrops, updatePickups } from "./pickups.js";
 import { initInput, pollInput, consumeReset } from "./input.js";
 import { Renderer } from "./renderer.js";
@@ -91,11 +91,11 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// ── Stats menu input (keyboard AND mouse both fully work) ─────────────────────
+// ── Menu input: stats via keyboard OR mouse; items via drag-and-drop ──────────
 window.addEventListener("keydown", (e) => {
-  if (e.code === "KeyE") { menuOpen = !menuOpen; e.preventDefault(); return; }
+  if (e.code === "KeyE") { menuOpen = !menuOpen; if (!menuOpen) drag = null; e.preventDefault(); return; }
   if (!menuOpen) return;
-  if (e.code === "Escape") menuOpen = false;
+  if (e.code === "Escape") { menuOpen = false; drag = null; }
   else if (e.code === "ArrowUp" || e.code === "KeyW") { menuSel = (menuSel + 4) % 5; e.preventDefault(); }
   else if (e.code === "ArrowDown" || e.code === "KeyS") { menuSel = (menuSel + 1) % 5; e.preventDefault(); }
   else if (["Enter", "Space", "ArrowRight", "KeyD", "Equal", "NumpadAdd"].includes(e.code)) {
@@ -106,8 +106,14 @@ window.addEventListener("pointermove", (e) => {
   mouseX = e.clientX; mouseY = e.clientY;
   if (menuOpen) menuHoverAt(mouseX, mouseY);
 });
+window.addEventListener("pointerdown", (e) => {
+  if (menuOpen) menuGrabAt(e.clientX, e.clientY); // start dragging an item
+});
+window.addEventListener("pointerup", (e) => {
+  if (drag) menuDropAt(e.clientX, e.clientY);
+});
 window.addEventListener("click", (e) => {
-  if (inRect(e.clientX, e.clientY, hamburgerRect())) { menuOpen = !menuOpen; return; }
+  if (inRect(e.clientX, e.clientY, hamburgerRect())) { menuOpen = !menuOpen; if (!menuOpen) drag = null; return; }
   if (menuOpen) menuClickAt(e.clientX, e.clientY);
 });
 
@@ -205,6 +211,10 @@ loadImage("./sprites/stats.png").then((img) => { statsImg = img; });
 let healthImg = null;
 loadImage("./sprites/health.png").then((img) => { healthImg = img; });
 
+// Item icons (32x32 rows, one per ITEM_TYPES entry) for the inventory UI (2D).
+let itemsImg = null;
+loadImage("./sprites/items.png").then((img) => { itemsImg = img; });
+
 // Pickups (heart/coin, 16x16 anim) and breakable props (vases, animated torch).
 let pickupsSprite = null;
 loadSprite("./sprites/pickups.json", "./sprites/pickups.png").then((s) => {
@@ -225,10 +235,11 @@ const dmgfx = createDamageNumbers();
 let pickups = [];
 let gameClock = 0; // advances only while unpaused; drives prop animation
 
-// ── Stats menu state ──────────────────────────────────────────────────────────
+// ── Inventory / stats menu state ──────────────────────────────────────────────
 let menuOpen = false;
 let menuSel = 0;          // highlighted stat row (0..4)
 let mouseX = 0, mouseY = 0;
+let drag = null;          // { type, fromKind: 'inv'|'equip', fromIndex } while dragging an item
 
 function spawnInRoom(room) {
   // Stand on the floor, a few tiles left of center (away from a bottom door gap).
@@ -301,9 +312,10 @@ function playerDie() {
 resetGame();
 
 // ── Bullets ──────────────────────────────────────────────────────────────────
-// The enemy whose hitbox this bullet overlaps, or null.
+// The enemy whose hitbox this bullet overlaps and hasn't hit yet, or null.
 function enemyHitByBullet(b) {
   for (const e of enemies) {
+    if (b.hit.includes(e)) continue; // pierced through it already
     for (const box of enemyBoxes(e).hit) {
       if (overlaps(b.x, b.y, C.BULLET_W, C.BULLET_H, box.x, box.y, box.w, box.h)) return e;
     }
@@ -329,13 +341,21 @@ function updateBullets(dt) {
     if (b.life <= 0) continue;
     if (collidesWithTiles(cur.tiles, b.x, b.y, C.BULLET_W, C.BULLET_H)) continue;
     const e = enemyHitByBullet(b);
-    if (e) { // bullet is consumed
+    if (e) {
       const crit = Math.random() < player.critChance;
       const dmg = player.damage * (crit ? C.CRIT_MULT : 1);
       damageEnemy(e, dmg);
       addDamageNumber(dmgfx, b.x + C.BULLET_W / 2, b.y, dmg, crit);
       playSound(SFX.enemyHit, 0.5, 0.12);
-      continue;
+      // Lifesteal: heal a fraction of damage dealt, with a green number.
+      if (player.lifesteal > 0) {
+        const heal = dmg * player.lifesteal;
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        addHealNumber(dmgfx, player.x + C.PW / 2, player.y - 6, heal);
+      }
+      b.hit.push(e);
+      if (b.pierce > 0) { b.pierce--; survivors.push(b); continue; } // pierce on
+      continue; // consumed
     }
     const br = breakableHitByBullet(b);
     if (br) { // one hit shatters it, spraying out its drops
@@ -785,34 +805,76 @@ function drawHamburger(ctx) {
   ctx.restore();
 }
 
+const SLOT = 46, SGAP = 6; // item slot size / gap
+
+// Layout: [equipment 2x3] [inventory 4x3] [stats list], all in one centered panel.
 function menuLayout() {
   const cw = uiCanvas.clientWidth, ch = uiCanvas.clientHeight;
-  const w = Math.min(440, cw * 0.82);
-  const headH = 56, rowH = 52;
-  const h = headH + rowH * 5 + 14;
-  const x = (cw - w) / 2, y = (ch - h) / 2;
-  const rows = [];
+  const P = 16, headH = 46, SG = 22;
+  const equipW = 2 * SLOT + SGAP;
+  const invW = 4 * SLOT + 3 * SGAP;
+  const statsW = 214;
+  const gridH = 3 * SLOT + 2 * SGAP;
+  const statsH = 5 * 32;
+  const contentH = Math.max(gridH, statsH);
+  const panelW = P + equipW + SG + invW + SG + statsW + P;
+  const panelH = P + headH + contentH + P;
+  const x = (cw - panelW) / 2, y = (ch - panelH) / 2;
+
+  const contentY = y + P + headH;
+  const equipX = x + P;
+  const invX = equipX + equipW + SG;
+  const statsX = invX + invW + SG;
+
+  const equip = [], inv = [], stats = [];
+  for (let i = 0; i < 6; i++)
+    equip.push({ x: equipX + (i % 2) * (SLOT + SGAP), y: contentY + ((i / 2) | 0) * (SLOT + SGAP), w: SLOT, h: SLOT });
+  for (let i = 0; i < 12; i++)
+    inv.push({ x: invX + (i % 4) * (SLOT + SGAP), y: contentY + ((i / 4) | 0) * (SLOT + SGAP), w: SLOT, h: SLOT });
   for (let i = 0; i < 5; i++) {
-    const ry = y + headH + i * rowH;
-    const r = { x: x + 12, y: ry, w: w - 24, h: rowH - 8 };
-    r.plus = { x: r.x + r.w - 46, y: ry + (r.h - 32) / 2, w: 38, h: 32 };
-    rows.push(r);
+    const r = { x: statsX, y: contentY + i * 32, w: statsW, h: 30 };
+    r.plus = { x: r.x + r.w - 30, y: r.y + 2, w: 26, h: 26 };
+    stats.push(r);
   }
-  const close = { x: x + w - 34, y: y + 8, w: 24, h: 24 };
-  return { x, y, w, h, rows, close };
+  const close = { x: x + panelW - 30, y: y + 10, w: 22, h: 22 };
+  return { panel: { x, y, w: panelW, h: panelH }, equip, inv, stats, close, equipX, invX, statsX, contentY };
+}
+
+const slotVal = (kind, i) => (kind === "equip" ? player.equipment[i] : player.inventory[i]);
+const setSlotVal = (kind, i, v) => { if (kind === "equip") player.equipment[i] = v; else player.inventory[i] = v; };
+
+const ITEM_LABEL = {
+  damage: `+${C.ITEM_POINTS * C.DMG_PER_POINT} damage`,
+  attack_speed: `+${Math.round(C.ATK_SPEED_BULLET * 100)}% bullet spd, 2=+1 pierce`,
+  crit_chance: `+${(C.ITEM_POINTS * C.CRIT_PER_POINT * 100).toFixed(1)}% crit`,
+  health: `+${C.ITEM_POINTS * C.HP_PER_POINT} max hp`,
+  armor: `+${C.ITEM_POINTS} armor`,
+  speed: `+${Math.round(C.ITEM_POINTS * C.SPEED_PER_POINT * 100)}% speed`,
+  lifesteal: `${Math.round(C.LIFESTEAL_PER_ITEM * 100)}% lifesteal`,
+};
+
+function drawItemIcon(ctx, type, x, y, size) {
+  if (!itemsImg) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(itemsImg, 0, type * 32, 32, 32, x, y, size, size);
+}
+
+function drawSlots(ctx, slots, kind, accent) {
+  for (let i = 0; i < slots.length; i++) {
+    const r = slots[i];
+    ctx.fillStyle = "rgba(30, 38, 54, 0.85)";
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 6); ctx.fill();
+    ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 6); ctx.stroke();
+    const held = slotVal(kind, i);
+    // The slot being dragged from shows empty.
+    const isSource = drag && drag.fromKind === kind && drag.fromIndex === i;
+    if (held != null && !isSource) drawItemIcon(ctx, held, r.x + 6, r.y + 6, r.w - 12);
+  }
 }
 
 function drawMenu(ctx) {
-  const L = menuLayout();
-  const names = ["Attack", "Health", "Armor", "Crit", "Speed"];
-  const values = [
-    `${player.damage} dmg`,
-    `${player.maxHp} hp`,
-    `${Math.round((1 - player.armorMult) * 100)}% reduction`,
-    `${(player.critChance * 100).toFixed(1)}% chance`,
-    `+${Math.round((player.runMax / C.MAX_RUN - 1) * 100)}% speed`,
-  ];
-
+  const L = menuLayout(), pn = L.panel;
   ctx.save();
   ctx.fillStyle = "rgba(0,0,0,0.5)";
   ctx.fillRect(0, 0, uiCanvas.clientWidth, uiCanvas.clientHeight);
@@ -820,17 +882,12 @@ function drawMenu(ctx) {
   ctx.fillStyle = "rgba(14,18,28,0.97)";
   ctx.strokeStyle = "rgba(150,180,220,0.4)";
   ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(L.x, L.y, L.w, L.h, 10); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(pn.x, pn.y, pn.w, pn.h, 10); ctx.fill(); ctx.stroke();
 
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "left";
-  ctx.font = 'bold 19px "Courier New", ui-monospace, monospace';
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.font = 'bold 18px "Courier New", ui-monospace, monospace';
   ctx.fillStyle = "#dfe8f5";
-  ctx.fillText("STATS", L.x + 16, L.y + 26);
-  ctx.textAlign = "right";
-  ctx.fillStyle = player.skillPoints > 0 ? "#ffd23c" : "#8a97ad";
-  ctx.font = 'bold 15px "Courier New", ui-monospace, monospace';
-  ctx.fillText(`points ${player.skillPoints}`, L.close.x - 10, L.y + 26);
+  ctx.fillText("INVENTORY", pn.x + 16, pn.y + 24);
 
   // close X
   ctx.strokeStyle = "#b9c6da"; ctx.lineWidth = 2; ctx.lineCap = "round";
@@ -839,51 +896,105 @@ function drawMenu(ctx) {
   ctx.moveTo(L.close.x + L.close.w, L.close.y); ctx.lineTo(L.close.x, L.close.y + L.close.h);
   ctx.stroke();
 
+  // section labels
+  ctx.font = '11px "Courier New", ui-monospace, monospace';
+  ctx.fillStyle = "#8a97ad"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillText("EQUIP", L.equipX, L.contentY - 6);
+  ctx.fillText("ITEMS", L.invX, L.contentY - 6);
+  ctx.fillStyle = player.skillPoints > 0 ? "#ffd23c" : "#8a97ad";
+  ctx.fillText(`STATS · ${player.skillPoints} pts`, L.statsX, L.contentY - 6);
+  ctx.textBaseline = "middle";
+
+  drawSlots(ctx, L.equip, "equip", "rgba(210, 180, 90, 0.7)"); // gold-ish for equipment
+  drawSlots(ctx, L.inv, "inv", "rgba(90, 120, 160, 0.6)");
+
+  // stats rows
+  const names = ["Attack", "Health", "Armor", "Crit", "Speed"];
+  const values = [
+    `${player.damage} dmg`, `${player.maxHp} hp`,
+    `${Math.round((1 - player.armorMult) * 100)}% reduc`,
+    `${(player.critChance * 100).toFixed(1)}% crit`,
+    `+${Math.round((player.runMax / C.MAX_RUN - 1) * 100)}% spd`,
+  ];
   const canBuy = player.skillPoints > 0;
   for (let i = 0; i < 5; i++) {
-    const r = L.rows[i];
-    const sel = i === menuSel;
+    const r = L.stats[i], sel = i === menuSel;
     ctx.fillStyle = sel ? "rgba(90,130,180,0.4)" : "rgba(40,52,74,0.4)";
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 6); ctx.fill();
     if (sel) { ctx.strokeStyle = "rgba(170,205,235,0.85)"; ctx.lineWidth = 1.5; ctx.stroke(); }
-
-    if (statsImg) ctx.drawImage(statsImg, i * 32, 0, 32, 32, r.x + 8, r.y + (r.h - 30) / 2, 30, 30);
-
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#e6edf7";
-    ctx.font = 'bold 15px "Courier New", ui-monospace, monospace';
-    ctx.fillText(names[i], r.x + 46, r.y + r.h / 2 - 9);
-    ctx.fillStyle = "#9fb0c8";
-    ctx.font = '12px "Courier New", ui-monospace, monospace';
-    ctx.fillText(`${values[i]}   pts ${player.stats[STAT_KEYS[i]]}`, r.x + 46, r.y + r.h / 2 + 9);
-
+    if (statsImg) ctx.drawImage(statsImg, i * 32, 0, 32, 32, r.x + 5, r.y + (r.h - 26) / 2, 26, 26);
+    ctx.textAlign = "left"; ctx.fillStyle = "#e6edf7";
+    ctx.font = 'bold 13px "Courier New", ui-monospace, monospace';
+    ctx.fillText(names[i], r.x + 38, r.y + r.h / 2 - 7);
+    ctx.fillStyle = "#9fb0c8"; ctx.font = '11px "Courier New", ui-monospace, monospace';
+    ctx.fillText(`${values[i]} · ${player.stats[STAT_KEYS[i]]}`, r.x + 38, r.y + r.h / 2 + 8);
     ctx.fillStyle = canBuy ? "rgba(88,180,110,0.95)" : "rgba(60,70,86,0.7)";
     ctx.beginPath(); ctx.roundRect(r.plus.x, r.plus.y, r.plus.w, r.plus.h, 5); ctx.fill();
     ctx.fillStyle = canBuy ? "#0b1a10" : "#8a97ad";
-    ctx.font = 'bold 22px "Courier New", ui-monospace, monospace';
-    ctx.textAlign = "center";
+    ctx.font = 'bold 19px "Courier New", ui-monospace, monospace'; ctx.textAlign = "center";
     ctx.fillText("+", r.plus.x + r.plus.w / 2, r.plus.y + r.plus.h / 2 + 1);
   }
 
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#6b7896";
+  // footer: hovered/dragged item description, else hint
+  let info = "Drag items to equip · click + to spend · E/Esc to close";
+  const hoverType = hoveredItemType(L);
+  if (drag) info = `${cap(ITEM_TYPES[drag.type])}: ${ITEM_LABEL[ITEM_TYPES[drag.type]]}`;
+  else if (hoverType != null) info = `${cap(ITEM_TYPES[hoverType])}: ${ITEM_LABEL[ITEM_TYPES[hoverType]]}`;
+  ctx.textAlign = "center"; ctx.fillStyle = "#8f9db5";
   ctx.font = '11px "Courier New", ui-monospace, monospace';
-  ctx.fillText("W/S or hover to select · Enter/click to spend · E/Esc to close",
-    L.x + L.w / 2, L.y + L.h - 8);
+  ctx.fillText(info, pn.x + pn.w / 2, pn.y + pn.h - 10);
+
+  // the item currently being dragged follows the cursor
+  if (drag) drawItemIcon(ctx, drag.type, mouseX - 18, mouseY - 18, 36);
   ctx.restore();
 }
 
+const cap = (s) => s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+function hoveredItemType(L) {
+  for (let i = 0; i < L.equip.length; i++) if (inRect(mouseX, mouseY, L.equip[i]) && player.equipment[i] != null) return player.equipment[i];
+  for (let i = 0; i < L.inv.length; i++) if (inRect(mouseX, mouseY, L.inv[i]) && player.inventory[i] != null) return player.inventory[i];
+  return null;
+}
+
+// A click spends a skill point (stats) or closes; item moves use drag (below).
 function menuClickAt(mx, my) {
   const L = menuLayout();
-  if (inRect(mx, my, L.close)) { menuOpen = false; return; }
-  for (let i = 0; i < 5; i++) {
-    if (inRect(mx, my, L.rows[i])) { menuSel = i; spendPoint(player, STAT_KEYS[i]); return; }
-  }
+  if (inRect(mx, my, L.close)) { menuOpen = false; drag = null; return; }
+  for (let i = 0; i < 5; i++)
+    if (inRect(mx, my, L.stats[i])) { menuSel = i; spendPoint(player, STAT_KEYS[i]); return; }
 }
 
 function menuHoverAt(mx, my) {
   const L = menuLayout();
-  for (let i = 0; i < 5; i++) if (inRect(mx, my, L.rows[i])) { menuSel = i; return; }
+  for (let i = 0; i < 5; i++) if (inRect(mx, my, L.stats[i])) { menuSel = i; return; }
+}
+
+// Begin dragging the item under the cursor (if any).
+function menuGrabAt(mx, my) {
+  const L = menuLayout();
+  for (let i = 0; i < L.equip.length; i++)
+    if (inRect(mx, my, L.equip[i]) && player.equipment[i] != null) { drag = { type: player.equipment[i], fromKind: "equip", fromIndex: i }; return true; }
+  for (let i = 0; i < L.inv.length; i++)
+    if (inRect(mx, my, L.inv[i]) && player.inventory[i] != null) { drag = { type: player.inventory[i], fromKind: "inv", fromIndex: i }; return true; }
+  return false;
+}
+
+// Drop the dragged item onto a slot (swapping contents); recompute stats.
+function menuDropAt(mx, my) {
+  if (!drag) return;
+  const L = menuLayout();
+  let target = null;
+  for (let i = 0; i < L.equip.length; i++) if (inRect(mx, my, L.equip[i])) target = { kind: "equip", index: i };
+  for (let i = 0; i < L.inv.length; i++) if (inRect(mx, my, L.inv[i])) target = { kind: "inv", index: i };
+  if (target) {
+    const a = slotVal(drag.fromKind, drag.fromIndex);
+    const b = slotVal(target.kind, target.index);
+    setSlotVal(target.kind, target.index, a);
+    setSlotVal(drag.fromKind, drag.fromIndex, b);
+    applyStats(player);
+  }
+  drag = null;
 }
 
 // Advance the EXP bar: on level-up pick a fresh hue and fire the burst; fill

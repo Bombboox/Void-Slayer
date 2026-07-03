@@ -11,17 +11,33 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 // Stat keys in sprite-sheet order (stats.png): attack, health, armor, crit, speed.
 export const STAT_KEYS = ["attack", "health", "armor", "crit", "speed"];
 
-// Recompute the derived combat/movement values from the allocated stat points.
+// Item types in items.png row order (index = sprite row). Row 6 (lifesteal) is
+// present in the image though the JSON only labels the first six.
+export const ITEM_TYPES = ["damage", "attack_speed", "crit_chance", "health", "armor", "speed", "lifesteal"];
+
+// Recompute derived combat/movement values from skill points AND equipped items.
 export function applyStats(p) {
   const s = p.stats;
-  p.maxHp = C.PLAYER_MAX_HP + s.health * C.HP_PER_POINT;
-  p.damage = C.BULLET_DAMAGE + s.attack * C.DMG_PER_POINT;
-  p.critChance = C.CRIT_BASE + s.crit * C.CRIT_PER_POINT;
-  p.armorMult = C.ARMOR_K / (C.ARMOR_K + s.armor); // incoming damage multiplier
-  const spd = 1 + s.speed * C.SPEED_PER_POINT;
+  const eq = [0, 0, 0, 0, 0, 0, 0]; // count of each equipped item type
+  for (const t of p.equipment) if (t != null) eq[t]++;
+  const IP = C.ITEM_POINTS;
+
+  p.maxHp = C.PLAYER_MAX_HP + s.health * C.HP_PER_POINT + eq[3] * IP * C.HP_PER_POINT;
+  p.damage = C.BULLET_DAMAGE + s.attack * C.DMG_PER_POINT + eq[0] * IP * C.DMG_PER_POINT;
+  p.critChance = C.CRIT_BASE + s.crit * C.CRIT_PER_POINT + eq[2] * IP * C.CRIT_PER_POINT;
+  p.armorMult = C.ARMOR_K / (C.ARMOR_K + s.armor + eq[4] * IP);
+  const spd = 1 + s.speed * C.SPEED_PER_POINT + eq[5] * IP * C.SPEED_PER_POINT;
   p.runMax = C.MAX_RUN * spd;
   p.dashSpeed = C.DASH_SPEED * spd;      // faster dash => longer dash (same duration)
   p.dashEndSpeed = C.DASH_END_SPEED * spd;
+
+  // Item-only stats.
+  const atkspd = eq[1];
+  p.bulletSpeed = C.BULLET_SPEED * (1 + atkspd * C.ATK_SPEED_BULLET);
+  p.pierce = Math.floor(atkspd / C.ATK_SPEED_PIERCE_PER); // extra enemies pierced
+  p.lifesteal = eq[6] * C.LIFESTEAL_PER_ITEM;
+
+  if (p.hp > p.maxHp) p.hp = p.maxHp; // unequipping health can't leave overfull
 }
 
 // Spend one skill point in `key`. Health also heals by the max-HP gained.
@@ -50,6 +66,11 @@ export function createPlayer(x, y) {
     coins: 0,
     skillPoints: 0,
     stats: { attack: 0, health: 0, armor: 0, crit: 0, speed: 0 },
+
+    // Items: 6 equipment slots (only these apply) + a 12-slot inventory. Each
+    // holds an item-type index (0..6) or null. Start with one of each to try out.
+    equipment: [null, null, null, null, null, null],
+    inventory: [0, 1, 2, 3, 4, 5, 6, null, null, null, null, null],
 
     onGround: false,
     onWallL: false,
@@ -242,9 +263,11 @@ export function updatePlayer(p, in_, dt, bullets, tiles) {
     bullets.push({
       x: p.x + C.PW * 0.5 - C.BULLET_W * 0.5,
       y: p.y + C.PH * 0.5 - C.BULLET_H * 0.5,
-      vx: dx * C.BULLET_SPEED,
-      vy: dy * C.BULLET_SPEED,
+      vx: dx * p.bulletSpeed,
+      vy: dy * p.bulletSpeed,
       life: C.BULLET_LIFETIME,
+      pierce: p.pierce, // extra enemies it can pass through
+      hit: [],          // enemies already damaged (so it hits each once)
     });
   }
 

@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "items.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "columns": 1,
+    "rows": 6,
+    "frameCount": 6,
+    "format": "keyframes",
+    "rowLabels": [
+      "damage",
+      "attack_speed",
+      "crit_chance",
+      "health",
+      "armor",
+      "speed"
+    ],
+    "rowFrameCounts": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "damage",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 1,
+      "col": 0,
+      "row": 1,
+      "action": "attack_speed",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 2,
+      "col": 0,
+      "row": 2,
+      "action": "crit_chance",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 3,
+      "col": 0,
+      "row": 3,
+      "action": "health",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 4,
+      "col": 0,
+      "row": 4,
+      "action": "armor",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 5,
+      "col": 0,
+      "row": 5,
+      "action": "speed",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

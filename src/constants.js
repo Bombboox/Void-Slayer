@@ -34,6 +34,14 @@ export const CRIT_PER_POINT  = 0.005;  // +0.5% per point
 export const CRIT_MULT       = 2;      // crits deal 2x
 export const SPEED_PER_POINT = 0.01;   // +4% run speed AND dash distance per point
 
+// ── Items (equipment) ─────────────────────────────────────────────────────────
+// Each equipped item is worth ~5 skill points in its stat. Attack-speed and
+// lifesteal have no skill-point version, so they get a balanced flat value.
+export const ITEM_POINTS = 5;            // an item ≈ this many skill points
+export const ATK_SPEED_BULLET = 0.15;    // +15% bullet speed per attack_speed item
+export const ATK_SPEED_PIERCE_PER = 2;   // every N attack_speed items => +1 pierce
+export const LIFESTEAL_PER_ITEM = 0.06;  // heal 6% of damage dealt, per lifesteal item
+
 // ── Horizontal movement ───────────────────────────────────────────────────────
 export const GROUND_ACCEL = 2000.0;
 export const GROUND_FRIC   = 1600.0;
