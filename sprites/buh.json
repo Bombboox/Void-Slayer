@@ -1,0 +1,161 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "buh.png",
+    "frameWidth": 192,
+    "frameHeight": 192,
+    "columns": 8,
+    "rows": 4,
+    "frameCount": 32,
+    "format": "keyframes",
+    "rowLabels": [
+      "idle",
+      "walk",
+      "wind_up",
+      "attack"
+    ],
+    "rowFrameCounts": [
+      8,
+      4,
+      8,
+      6
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 59,
+          "y": 105,
+          "width": 55,
+          "height": 23
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 8,
+      "col": 0,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 59,
+          "y": 105,
+          "width": 55,
+          "height": 23
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 16,
+      "col": 0,
+      "row": 2,
+      "action": "wind_up",
+      "hitboxes": [
+        {
+          "x": 59,
+          "y": 105,
+          "width": 55,
+          "height": 23
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 24,
+      "col": 0,
+      "row": 3,
+      "action": "attack",
+      "hitboxes": [
+        {
+          "x": 63,
+          "y": 102,
+          "width": 51,
+          "height": 21
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 25,
+      "col": 1,
+      "row": 3,
+      "action": "attack",
+      "hitboxes": [
+        {
+          "x": 64,
+          "y": 101,
+          "width": 49,
+          "height": 21
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 27,
+      "col": 3,
+      "row": 3,
+      "action": "attack",
+      "hitboxes": [
+        {
+          "x": 64,
+          "y": 101,
+          "width": 49,
+          "height": 21
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 114,
+          "y": 81,
+          "width": 29,
+          "height": 53
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 28,
+      "col": 4,
+      "row": 3,
+      "action": "attack",
+      "hitboxes": [
+        {
+          "x": 64,
+          "y": 90,
+          "width": 44,
+          "height": 20
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 29,
+      "col": 5,
+      "row": 3,
+      "action": "attack",
+      "hitboxes": [
+        {
+          "x": 59,
+          "y": 105,
+          "width": 55,
+          "height": 23
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

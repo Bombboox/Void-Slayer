@@ -69,9 +69,9 @@ export function createPlayer(x, y) {
     stats: { attack: 0, health: 0, armor: 0, crit: 0, speed: 0 },
 
     // Items: 6 equipment slots (only these apply) + a 12-slot inventory. Each
-    // holds an item-type index (0..6) or null. Start with one of each to try out.
+    // holds an item-type index (0..6) or null. Start empty.
     equipment: [null, null, null, null, null, null],
-    inventory: [0, 1, 2, 3, 4, 5, 6, null, null, null, null, null],
+    inventory: [null, null, null, null, null, null, null, null, null, null, null, null],
 
     onGround: false,
     onWallL: false,
@@ -218,8 +218,8 @@ export function updatePlayer(p, in_, dt, bullets, tiles) {
 
     if (!stunned && p.jumpBuffer > 0 && (canGround || canWallHop || canAirJump)) {
       if (canWallHop && !canGround) {
-        const dir = p.onWallL ? 1.0 : -1.0;
-        p.vx = dir * C.WALL_HOP_VX;
+        // Wall hop gives a vertical boost only — horizontal velocity is left under
+        // the player's control (no forced push away from the wall).
         p.vy = C.WALL_HOP_VY;
         p.wallHopUsed = true;
         p.airDashUsed = false;

@@ -12,8 +12,8 @@ export const PH = 28.0;
 
 // ── Health & damage ───────────────────────────────────────────────────────────
 export const PLAYER_MAX_HP   = 100;
-export const DMG_ENEMY_TOUCH = 14;   // touching an enemy's body/attack box
-export const DMG_PLASMA      = 10;   // a deepblue plasma ball
+export const DMG_ENEMY_TOUCH = 20;   // touching an enemy's body/attack box
+export const DMG_PLASMA      = 15;   // a deepblue plasma ball
 export const BULLET_DAMAGE   = 10;   // the player's own shots, dealt to enemies
 
 // Enemies scale linearly with the player's level: +10% HP and damage per level.
@@ -95,14 +95,14 @@ export const ENEMY_ANIM_FPS  = 12;
 export const ENEMY_ATTACK_HEIGHT = 48;
 
 // ── Lilguy ───────────────────────────────────────────────────────────────────
-export const LILGUY_MAX_HP          = 30;
+export const LILGUY_MAX_HP          = 45;
 export const LILGUY_SPEED           = 80.0;
 export const LILGUY_CHASE_RANGE     = 160;
 export const LILGUY_ATTACK_RANGE    = 40;
 export const LILGUY_ATTACK_COOLDOWN = 1.4;
 
 // ── Eyefly ───────────────────────────────────────────────────────────────────
-export const EYEFLY_MAX_HP          = 20;
+export const EYEFLY_MAX_HP          = 45;
 export const EYEFLY_PATROL_SPEED    = 60.0;
 export const EYEFLY_PATROL_ACCEL    = 120.0;
 export const EYEFLY_CHASE_SPEED     = 140.0;
@@ -112,7 +112,7 @@ export const EYEFLY_ATTACK_RANGE    = 120;
 export const EYEFLY_ATTACK_COOLDOWN = 2.0;
 
 // ── Deepblue (ranged ground enemy) ────────────────────────────────────────────
-export const DEEPBLUE_MAX_HP         = 40;
+export const DEEPBLUE_MAX_HP         = 70;
 export const DEEPBLUE_SPEED          = 55.0;
 export const DEEPBLUE_DETECT_RANGE   = 460;  // large: it's a ranged attacker
 export const DEEPBLUE_ATTACK_COOLDOWN = 1.5;
@@ -121,6 +121,23 @@ export const DEEPBLUE_IDLE_MIN       = 1.0;  // random idle/walk dwell times
 export const DEEPBLUE_IDLE_MAX       = 2.6;
 export const DEEPBLUE_WALK_MIN       = 0.8;
 export const DEEPBLUE_WALK_MAX       = 1.8;
+
+// ── Buh (wall-crawler) ────────────────────────────────────────────────────────
+export const BUH_MAX_HP          = 55;
+export const BUH_WALK_SPEED      = 55.0;
+export const BUH_DETECT_RANGE    = 420;  // ~2x — it can pounce from farther
+export const BUH_ATTACK_COOLDOWN = 2.4;
+export const BUH_SCALE           = 0.7;  // draw/collision scale (it's rendered smaller)
+export const BUH_GRAVITY         = 900.0;
+export const BUH_LEAP_NORMAL     = 300.0; // launch speed away from the surface
+export const BUH_LEAP_TANGENT    = 150.0; // sideways launch along the surface
+export const BUH_POUNCE_SPEED    = 360.0; // lunge speed toward the player
+
+// ── Spike block (a floor trap: stays down until you land on it) ───────────────
+export const SPIKE_DELAY  = 1.0;  // s after the player lands before the spikes rise
+export const SPIKE_ACTIVE = 3.0;  // s the spikes stay out once up
+export const SPIKE_FPS    = 14;   // activate / deactivate animation speed
+export const SPIKE_DMG    = 20;   // damage per hit while impaled
 
 // ── Plasma (enemy energy projectile) ──────────────────────────────────────────
 export const PLASMA_SPEED    = 300.0;

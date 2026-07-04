@@ -1,0 +1,566 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "spike.png",
+    "frameWidth": 32,
+    "frameHeight": 64,
+    "columns": 11,
+    "rows": 4,
+    "frameCount": 44,
+    "format": "keyframes",
+    "rowLabels": [
+      "inactive",
+      "activate",
+      "activated",
+      "deactivate"
+    ],
+    "rowFrameCounts": [
+      1,
+      6,
+      1,
+      11
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "inactive",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 11,
+      "col": 0,
+      "row": 1,
+      "action": "activate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 14,
+      "col": 3,
+      "row": 1,
+      "action": "activate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 12,
+          "y": 26,
+          "width": 8,
+          "height": 6
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 15,
+      "col": 4,
+      "row": 1,
+      "action": "activate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 7,
+          "width": 4,
+          "height": 25
+        },
+        {
+          "x": 1,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 7,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        },
+        {
+          "x": 18,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 16,
+      "col": 5,
+      "row": 1,
+      "action": "activate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 6,
+          "width": 4,
+          "height": 26
+        },
+        {
+          "x": 1,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 7,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        },
+        {
+          "x": 18,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 22,
+      "col": 0,
+      "row": 2,
+      "action": "activated",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 6,
+          "width": 4,
+          "height": 26
+        },
+        {
+          "x": 7,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        },
+        {
+          "x": 1,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 33,
+      "col": 0,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 6,
+          "width": 4,
+          "height": 26
+        },
+        {
+          "x": 7,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        },
+        {
+          "x": 1,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 17,
+          "width": 7,
+          "height": 11
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 34,
+      "col": 1,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 9,
+          "width": 4,
+          "height": 23
+        },
+        {
+          "x": 7,
+          "y": 20,
+          "width": 7,
+          "height": 8
+        },
+        {
+          "x": 1,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 13,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 20,
+          "width": 7,
+          "height": 8
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 35,
+      "col": 2,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 12,
+          "width": 4,
+          "height": 20
+        },
+        {
+          "x": 7,
+          "y": 23,
+          "width": 7,
+          "height": 5
+        },
+        {
+          "x": 4,
+          "y": 28,
+          "width": 10,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 10,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 23,
+          "width": 7,
+          "height": 5
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 36,
+      "col": 3,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 15,
+          "width": 4,
+          "height": 17
+        },
+        {
+          "x": 10,
+          "y": 21,
+          "width": 4,
+          "height": 7
+        },
+        {
+          "x": 6,
+          "y": 28,
+          "width": 8,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 8,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 21,
+          "width": 4,
+          "height": 7
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 37,
+      "col": 4,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 18,
+          "width": 4,
+          "height": 14
+        },
+        {
+          "x": 10,
+          "y": 23,
+          "width": 4,
+          "height": 5
+        },
+        {
+          "x": 8,
+          "y": 28,
+          "width": 6,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 6,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 23,
+          "width": 4,
+          "height": 5
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 38,
+      "col": 5,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 14,
+          "y": 21,
+          "width": 4,
+          "height": 11
+        },
+        {
+          "x": 12,
+          "y": 24,
+          "width": 2,
+          "height": 4
+        },
+        {
+          "x": 10,
+          "y": 28,
+          "width": 4,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "width": 4,
+          "height": 4
+        },
+        {
+          "x": 18,
+          "y": 24,
+          "width": 2,
+          "height": 4
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 39,
+      "col": 6,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 13,
+          "y": 25,
+          "width": 6,
+          "height": 7
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 40,
+      "col": 7,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 13,
+          "y": 27,
+          "width": 6,
+          "height": 5
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 41,
+      "col": 8,
+      "row": 3,
+      "action": "deactivate",
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

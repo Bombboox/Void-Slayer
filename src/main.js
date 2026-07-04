@@ -7,7 +7,7 @@ import { initInput, pollInput, consumeReset } from "./input.js";
 import { Renderer } from "./renderer.js";
 import * as W from "./world.js";
 import { loadSprite, loadImage } from "./sprite.js";
-import { createLilguy, createEyefly, createDeepblue, updateEnemy, enemyBoxes, drawEnemy, damageEnemy } from "./enemy.js";
+import { createLilguy, createEyefly, createDeepblue, createBuh, updateEnemy, enemyBoxes, drawEnemy, drawBuh, damageEnemy } from "./enemy.js";
 import { createHealthBar, updateHealthBar, shakeHealthBar, drawHealthBar } from "./healthbar.js";
 import { playMusic, unlockAudio, playSound, preloadSound } from "./audio.js";
 import { createExpParticles, burstExp, updateExpParticles, drainExpParticles } from "./expparticles.js";
@@ -72,6 +72,8 @@ const SFX = {
   vase4: "./sounds/effects/vase_4.wav",
   keyPickup: "./sounds/effects/key_pickup.wav",
   chestUnlock: "./sounds/effects/chest_unlock.mp3",
+  warning: "./sounds/effects/warning.mp3",
+  spikeActivate: "./sounds/effects/spike_activate.mp3",
 };
 const VASE_SFX = [SFX.vase1, SFX.vase2, SFX.vase3, SFX.vase4];
 for (const url of Object.values(SFX)) preloadSound(url);
@@ -160,7 +162,7 @@ function grantExp(amount) {
   }
 }
 
-const sprites = { lilguy: null, eyefly: null, deepblue: null };
+const sprites = { lilguy: null, eyefly: null, deepblue: null, buh: null };
 let spritesReady = false;
 function loadEnemySprite(name) {
   return loadSprite(`./sprites/${name}.json`, `./sprites/${name}.png`).then((s) => {
@@ -168,15 +170,16 @@ function loadEnemySprite(name) {
     sprites[name] = s;
     // Only start populating rooms once every enemy sprite is ready, so a room's
     // (persisted) roster isn't locked in with some types missing.
-    if (sprites.lilguy && sprites.eyefly && sprites.deepblue) {
+    if (sprites.lilguy && sprites.eyefly && sprites.deepblue && sprites.buh) {
       spritesReady = true;
-      if (cur) enemies = roomEnemies(cur);
+      if (cur) loadRoomEnemies();
     }
   });
 }
 loadEnemySprite("lilguy");
 loadEnemySprite("eyefly");
 loadEnemySprite("deepblue");
+loadEnemySprite("buh");
 
 // A room's enemies are generated once (on first entry) and then persisted on the
 // room object, so leaving and returning shows the same enemies and the ones you
@@ -242,6 +245,14 @@ loadSprite("./sprites/chest.json", "./sprites/chest.png").then((s) => {
   chestSprite = s;
 });
 
+// Spike-trap block (32x64: bottom tile is the solid block, top tile the spikes).
+// Rows: inactive / activate / activated / deactivate.
+let spikeSprite = null;
+loadSprite("./sprites/spike.json", "./sprites/spike.png").then((s) => {
+  s.tex = renderer.createTexture(s.image);
+  spikeSprite = s;
+});
+
 // Floating damage numbers and loose pickups.
 const dmgfx = createDamageNumbers();
 let pickups = [];
@@ -260,6 +271,22 @@ function spawnInRoom(room) {
   return { x, y };
 }
 
+// A safe airborne spawn spot for a flyer above a floor column: a few tiles up,
+// clamped inside the room and nudged lower until it isn't buried in a structure —
+// which is how eyeflies used to spawn embedded and get ejected out of bounds.
+function eyeflyPos(room, col, bb, floorTop) {
+  const x = Math.max(room.origin.x + C.TILE,
+    Math.min(room.origin.x + col * C.TILE + (C.TILE - bb.w) / 2,
+             room.origin.x + C.ROOM_W - C.TILE - bb.w));
+  const minY = room.origin.y + C.TILE;         // just below the ceiling
+  const maxY = floorTop - bb.h - C.TILE;        // at least a tile above the floor
+  for (let up = 7; up >= 3; up--) {
+    const y = Math.max(minY, Math.min(floorTop - bb.h - up * C.TILE, maxY));
+    if (!collidesWithTiles(room.tiles, x, y, bb.w, bb.h)) return { x, y };
+  }
+  return { x, y: Math.max(minY, floorTop - bb.h - 3 * C.TILE) };
+}
+
 function spawnEnemies(room) {
   const list = [];
   // Only spawn on open, reachable floor columns (computed by the generator), so
@@ -269,29 +296,31 @@ function spawnEnemies(room) {
   const takeCol = () => (pool.length ? pool.splice((Math.random() * pool.length) | 0, 1)[0] : null);
   const groundX = (col, bb) => room.origin.x + col * C.TILE + (C.TILE - bb.w) / 2;
 
-  if (sprites.lilguy) {
-    const bb = sprites.lilguy.bodyBox;
-    for (let i = 0; i < 2; i++) {
+  // A random mix (weighted bag) so each room's roster feels different.
+  const BAG = ["lilguy", "lilguy", "lilguy", "eyefly", "eyefly", "eyefly", "deepblue", "deepblue", "buh", "buh"];
+  const count = 4 + ((Math.random() * 3) | 0); // 4..6 enemies
+  for (let i = 0; i < count; i++) {
+    const type = BAG[(Math.random() * BAG.length) | 0];
+    if (type === "eyefly" && sprites.eyefly) {
+      // Flies, so it starts in clear air above a reachable floor column (in bounds).
+      const cols = room.spawnCols || [];
+      const col = cols.length ? cols[(Math.random() * cols.length) | 0] : Math.floor(C.ROOM_COLS / 2);
+      const pos = eyeflyPos(room, col, sprites.eyefly.bodyBox, floorTop);
+      list.push(createEyefly(pos.x, pos.y, sprites.eyefly, room));
+    } else if (type === "buh" && sprites.buh) {
+      // Crawls on any surface; starts clinging to the floor (its x/y is the body center).
       const col = takeCol();
-      if (col == null) break;
-      list.push(createLilguy(groundX(col, bb), floorTop - bb.h, sprites.lilguy));
+      if (col != null) list.push(createBuh(room.origin.x + col * C.TILE + C.TILE / 2, floorTop - 10, sprites.buh));
+    } else if (type === "deepblue" && sprites.deepblue) {
+      const col = takeCol(), bb = sprites.deepblue.bodyBox;
+      if (col != null) list.push(createDeepblue(groundX(col, bb), floorTop - bb.h, sprites.deepblue));
+    } else if (sprites.lilguy) {
+      const col = takeCol(), bb = sprites.lilguy.bodyBox;
+      if (col != null) list.push(createLilguy(groundX(col, bb), floorTop - bb.h, sprites.lilguy));
     }
   }
-  if (sprites.deepblue) {
-    const bb = sprites.deepblue.bodyBox;
-    const col = takeCol();
-    if (col != null) list.push(createDeepblue(groundX(col, bb), floorTop - bb.h, sprites.deepblue));
-  }
-  if (sprites.eyefly) {
-    // Flies, so it starts in open air above a reachable floor column.
-    const cols = room.spawnCols || [];
-    const col = cols.length ? cols[(Math.random() * cols.length) | 0] : Math.floor(C.ROOM_COLS / 2);
-    const x = room.origin.x + col * C.TILE;
-    const y = floorTop - (4 + Math.random() * 3) * C.TILE;
-    list.push(createEyefly(x, y, sprites.eyefly, room));
-  }
 
-  // Scale strength with the player's level (+20% HP & damage per level). Locked in
+  // Scale strength with the player's level (+10% HP & damage per level). Locked in
   // at spawn, so a room's enemies keep their difficulty when you leave and return.
   const mult = 1 + C.ENEMY_SCALE_PER_LEVEL * player.level;
   for (const e of list) {
@@ -300,6 +329,68 @@ function spawnEnemies(room) {
     e.powerMult = mult;
   }
   return list;
+}
+
+// Body center of an enemy (the buh tracks its center directly; others use bodyBox).
+function enemyCenter(e) {
+  if (e.type === "buh") return { x: e.x, y: e.y };
+  const bb = e.sprite.bodyBox;
+  return { x: e.x + bb.w / 2, y: e.y + bb.h / 2 };
+}
+
+// Has an enemy escaped the current room (jumped/walked past the perimeter, where
+// it's unreachable)? Such enemies are treated as dead.
+function enemyOutOfBounds(e) {
+  const c = enemyCenter(e);
+  return c.x < cur.origin.x || c.x > cur.origin.x + C.ROOM_W ||
+         c.y < cur.origin.y || c.y > cur.origin.y + C.ROOM_H;
+}
+
+// Move an enemy onto floor column `col`, placed the same way spawnEnemies would.
+function placeEnemyAt(e, room, col, floorTop) {
+  e.vx = 0; e.vy = 0;
+  if (e.type === "eyefly") {
+    const pos = eyeflyPos(room, col, e.sprite.bodyBox, floorTop);
+    e.x = pos.x; e.y = pos.y; e.patrolX = pos.x; e.patrolY = pos.y;
+  } else if (e.type === "buh") {
+    e.x = room.origin.x + col * C.TILE + C.TILE / 2; e.y = floorTop - 10;
+    e.n = { x: 0, y: -1 }; e.attached = true; e.mode = "idle"; e.modeTimer = 0.8;
+    e.animTime = 0; e.landN = null;
+  } else {
+    const bb = e.sprite.bodyBox;
+    e.x = room.origin.x + col * C.TILE + (C.TILE - bb.w) / 2; e.y = floorTop - bb.h;
+  }
+}
+
+// When the player enters a room, keep enemies from being right on the entrance
+// (near-certain unfair hits): relocate any enemy within SAFE of the player to the
+// farthest-away reachable floor columns. Works for freshly-spawned rooms AND
+// persisted ones re-entered from a different door.
+const SPAWN_SAFE = 6 * C.TILE;
+function clearSpawnZone(room) {
+  if (!enemies.length) return;
+  const cols = room.spawnCols || [];
+  if (!cols.length) return;
+  const floorTop = room.origin.y + (C.ROOM_ROWS - 1) * C.TILE;
+  const pcx = player.x + C.PW / 2, pcy = player.y + C.PH / 2;
+  const far = cols
+    .map((col) => ({ col, cx: room.origin.x + col * C.TILE + C.TILE / 2 }))
+    .filter((o) => Math.abs(o.cx - pcx) > SPAWN_SAFE)
+    .sort((a, b) => Math.abs(b.cx - pcx) - Math.abs(a.cx - pcx));
+  if (!far.length) return;
+  let fi = 0;
+  for (const e of enemies) {
+    const c = enemyCenter(e);
+    if (Math.hypot(c.x - pcx, c.y - pcy) >= SPAWN_SAFE) continue;
+    placeEnemyAt(e, room, far[fi++ % far.length].col, floorTop);
+  }
+}
+
+// Load (and, on first visit, spawn) the current room's enemies, then push any that
+// are sitting on top of the player away from the entrance.
+function loadRoomEnemies() {
+  enemies = roomEnemies(cur);
+  clearSpawnZone(cur);
 }
 
 function resetGame() {
@@ -313,7 +404,7 @@ function resetGame() {
   dmgfx.list = [];
   pickups = [];
   menuOpen = false; menuSel = 0;
-  enemies = roomEnemies(cur);
+  loadRoomEnemies();
   transition = null;
   exitCooldown = 0;
   healthbar.displayed = 1;
@@ -391,22 +482,99 @@ function updateBullets(dt) {
   }
   bullets = survivors;
   if (brokeProp) cur.breakables = cur.breakables.filter((k) => k.hp > 0); // persist shatters
-  // Burst EXP particles from any enemy that just died, then remove the slain.
+  // Burst EXP + drop loot from anything that just died. An enemy that escaped the
+  // room counts as dead too — but its rewards spawn a little above the player
+  // rather than out in the void where it wandered off to.
+  const above = () => ({ x: player.x + C.PW / 2, y: player.y - 20 });
   const alive = [];
-  let lastDead = null;
+  let lastDead = null, lastDeadOOB = false;
   for (const e of enemies) {
-    if (e.hp > 0) { alive.push(e); continue; }
-    const bb = e.sprite.bodyBox;
-    burstExp(expfx, e.x + bb.w / 2, e.y + bb.h / 2, C.EXP_REWARD[e.type] ?? 20);
-    lastDead = e;
+    const oob = enemyOutOfBounds(e);
+    if (e.hp > 0 && !oob) { alive.push(e); continue; }
+    const c = oob ? above() : enemyCenter(e);
+    burstExp(expfx, c.x, c.y, C.EXP_REWARD[e.type] ?? 20);
+    lastDead = e; lastDeadOOB = oob;
   }
   // Clearing the room: the last enemy drops silver-chest-equivalent loot.
   if (lastDead && alive.length === 0) {
-    const bb = lastDead.sprite.bodyBox;
-    silverLoot(lastDead.x + bb.w / 2, lastDead.y + bb.h / 2);
+    const c = lastDeadOOB ? above() : enemyCenter(lastDead);
+    silverLoot(c.x, c.y);
   }
   enemies = alive;
   if (cur.enemies) cur.enemies = enemies; // persist the deaths on the room
+}
+
+// ── Spike-trap blocks ─────────────────────────────────────────────────────────
+// A spike block stays inactive until the player lands on it; after SPIKE_DELAY it
+// raises its spikes (activate anim), holds them out for SPIKE_ACTIVE seconds, then
+// retracts (deactivate anim) back to inactive. It can only re-trigger once fully
+// inactive again. The block itself is a normal solid tile (collision); only its
+// spikes deal damage (via the sprite's hurtboxes on the current frame).
+
+// The clip + frame index the spike is showing right now.
+function spikeFrame(s) {
+  if (s.phase === "activate")   return { clip: "activate", i: s.frame };
+  if (s.phase === "activated")  return { clip: "activated", i: 0 };
+  if (s.phase === "deactivate") return { clip: "deactivate", i: s.frame };
+  return { clip: "inactive", i: 0 }; // idle or delay: spikes down
+}
+
+// World-space hurtboxes for the spike's current frame. The sprite is drawn one
+// tile above the block (top tile = spikes), so frame-local coords offset from there.
+function spikeHurtboxes(s) {
+  if (!spikeSprite) return [];
+  const { clip, i } = spikeFrame(s);
+  const cl = spikeSprite.clips[clip];
+  const f = cl.frames[Math.min(i, cl.count - 1)];
+  const top = s.y - C.TILE;
+  return f.hurtboxes.map((h) => ({ x: s.x + h.x, y: top + h.y, w: h.width, h: h.height }));
+}
+
+// Is the player standing on the block's top surface (i.e. has landed on it)?
+function playerOnBlock(s) {
+  const foot = player.y + C.PH;
+  return player.vy >= 0 &&
+    foot >= s.y - 4 && foot <= s.y + 10 &&
+    player.x + C.PW > s.x + 2 && player.x < s.x + C.TILE - 2;
+}
+
+function updateSpikes(dt) {
+  if (!spikeSprite || !cur.spikes) return;
+  for (const s of cur.spikes) {
+    if (s.phase === "idle") {
+      if (playerOnBlock(s)) { // triggered: warning sound + telegraph, spikes rise after the delay
+        s.phase = "delay"; s.timer = C.SPIKE_DELAY;
+        playSound(SFX.warning, 0.6, 0.05);
+      }
+    } else if (s.phase === "delay") {
+      s.timer -= dt;
+      if (s.timer <= 0) { // delay over: spikes rise now
+        s.phase = "activate"; s.animT = 0; s.frame = 0;
+        playSound(SFX.spikeActivate, 0.6, 0.05);
+      }
+    } else if (s.phase === "activate") {
+      s.animT += dt;
+      const n = spikeSprite.clips.activate.count;
+      s.frame = (s.animT * C.SPIKE_FPS) | 0;
+      if (s.frame >= n - 1) { s.frame = n - 1; s.phase = "activated"; s.timer = C.SPIKE_ACTIVE; }
+    } else if (s.phase === "activated") {
+      s.timer -= dt;
+      if (s.timer <= 0) { s.phase = "deactivate"; s.animT = 0; s.frame = 0; } // retracts regardless
+    } else if (s.phase === "deactivate") {
+      s.animT += dt;
+      const n = spikeSprite.clips.deactivate.count;
+      s.frame = (s.animT * C.SPIKE_FPS) | 0;
+      if (s.frame >= n - 1) { s.phase = "idle"; s.frame = 0; } // fully down -> can trigger again
+    }
+  }
+  // Damage: the player impaled on any active spike (i-frames gate repeat hits).
+  if (player.invuln <= 0) {
+    for (const s of cur.spikes) {
+      const box = spikeHurtboxes(s).find((b) =>
+        overlaps(player.x, player.y, C.PW, C.PH, b.x, b.y, b.w, b.h));
+      if (box) { knockbackPlayer(box, C.SPIKE_DMG); break; }
+    }
+  }
 }
 
 // ── Enemies + knockback ───────────────────────────────────────────────────────
@@ -608,7 +776,7 @@ function enterRoom(nb, ent) {
   player.jumpHolding = false; player.coyoteTimer = 0; player.onGround = false;
   player.wallHopUsed = false; player.airDashUsed = false; player.airJumpUsed = false;
   player.hitstun = 0; player.invuln = 0;
-  enemies = roomEnemies(cur);
+  loadRoomEnemies();
   markVisited(cur);
   bullets = [];
   enemyShots = [];
@@ -725,6 +893,27 @@ function drawProps(room) {
   }
 }
 
+// Spike-trap blocks. Draws the 32x64 sprite one tile above the block so the block
+// portion lands on its solid tile and the spikes occupy the cell above. Casts a
+// red glow (and a brief warning tint during the pre-activation delay).
+function drawSpikes(room) {
+  if (!spikeSprite || !room.spikes) return;
+  for (const s of room.spikes) {
+    const { clip, i } = spikeFrame(s);
+    const cl = spikeSprite.clips[clip];
+    const f = cl.frames[Math.min(i, cl.count - 1)];
+    // Pulse a warning tint while it's counting down to activate.
+    let tint = null;
+    if (s.phase === "delay") {
+      const w = 0.35 + 0.35 * Math.abs(Math.sin(gameClock * 12));
+      tint = [1, 0.2, 0.2, w];
+    }
+    renderer.drawSprite(spikeSprite.tex, s.x, s.y - C.TILE, C.TILE, C.TILE * 2, f.u0, f.v0, f.u1, f.v1, false, tint);
+    if (s.phase === "activate" || s.phase === "activated" || s.phase === "deactivate")
+      renderer.addLight(s.x + C.TILE / 2, s.y - C.TILE / 2, 44, [1.0, 0.25, 0.25], 0.5);
+  }
+}
+
 // The room's chest (if any). Plays its open animation once opened; gold/silver
 // each cast a subtly colored glow so they stand out.
 function drawChest(room) {
@@ -795,13 +984,15 @@ function render() {
 
   if (!transition) {
     drawProps(cur);
+    drawSpikes(cur);
     drawChest(cur);
 
     for (const e of enemies) {
-      drawEnemy(renderer, e);
-      // A faint glow on the glowy enemies so they read in the dark.
+      if (e.type === "buh") drawBuh(renderer, e); else drawEnemy(renderer, e);
+      // The buh tracks its body center directly; others use bodyBox from top-left.
       const bb = e.sprite.bodyBox;
-      const ecx = e.x + bb.w / 2, ecy = e.y + bb.h / 2;
+      const ecx = e.type === "buh" ? e.x : e.x + bb.w / 2;
+      const ecy = e.type === "buh" ? e.y : e.y + bb.h / 2;
       if (e.type === "eyefly") renderer.addLight(ecx, ecy, 80, [0.45, 0.80, 1.0], 0.4);
       else if (e.type === "deepblue") renderer.addLight(ecx, ecy, 70, [0.35, 0.55, 1.0], 0.35);
       // A burst of light on the hit flash so the enemy visibly "lights up".
@@ -874,6 +1065,7 @@ function drawUI() {
   drawExpBar(uiCtx);
   if (lastView) drawDamageNumbers(uiCtx, dmgfx, projectToScreen, statsImg);
   drawChestPrompt(uiCtx);
+  drawSpikeWarning(uiCtx);
   drawCoins(uiCtx);
   drawHamburger(uiCtx);
   if (menuOpen) drawMenu(uiCtx);
@@ -908,6 +1100,25 @@ function drawChestPrompt(ctx) {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(pickupsSprite.image, 0, 32, 16, 16, startX + vW + gap, y - iconSz - iconSz / 4, iconSz, iconSz);
   }
+  ctx.restore();
+}
+
+// A blinking "!" above the player's head while a spike they triggered is counting
+// down to activate — a brief warning to get off it.
+function drawSpikeWarning(ctx) {
+  if (!lastView || menuOpen || !cur.spikes) return;
+  if (!cur.spikes.some((s) => s.phase === "delay")) return;
+  if (((gameClock * 8) | 0) & 1) return; // blink
+  const s = projectToScreen(player.x + C.PW / 2, player.y);
+  const bob = Math.sin(gameClock * 10) * 2;
+  ctx.save();
+  ctx.font = 'bold 26px "Courier New", ui-monospace, monospace';
+  ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+  ctx.lineJoin = "round"; ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(0,0,0,0.9)";
+  ctx.strokeText("!", s.sx, s.sy - 12 + bob);
+  ctx.fillStyle = "#ff4340";
+  ctx.fillText("!", s.sx, s.sy - 12 + bob);
   ctx.restore();
 }
 
@@ -1359,6 +1570,7 @@ function frame(now) {
       const bulletsBefore = bullets.length;
       updatePlayer(player, input, dt, bullets, cur.tiles);
       if (bullets.length > bulletsBefore) playSound(SFX.playerFire, 0.4, 0.06);
+      updateSpikes(dt);
       updateEnemies(dt);
       updateEnemyShots(dt);
       updateBullets(dt);

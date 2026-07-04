@@ -250,6 +250,31 @@ export class Renderer {
     this.texCount += VERTS_PER_QUAD;
   }
 
+  // Like drawSprite but the quad (w x h) is centered at (cx, cy) and rotated by
+  // `angle` radians — for sprites that cling to arbitrary surfaces (the buh).
+  drawSpriteRot(tex, cx, cy, w, h, u0, v0, u1, v1, angle, flipX = false, tint = null) {
+    if (this.count > 0) this.flush();
+    if (this.texBatchTex !== tex) this.flushTex();
+    if (this.texCount + VERTS_PER_QUAD > MAX_QUADS * VERTS_PER_QUAD) this.flushTex();
+    this.texBatchTex = tex;
+
+    if (flipX) { const t = u0; u0 = u1; u1 = t; }
+    const hw = w / 2, hh = h / 2, cos = Math.cos(angle), sin = Math.sin(angle);
+    const rx = (lx, ly) => cx + lx * cos - ly * sin;
+    const ry = (lx, ly) => cy + lx * sin + ly * cos;
+    const tr = tint ? tint[0] : 0, tg = tint ? tint[1] : 0;
+    const tb = tint ? tint[2] : 0, ta = tint ? tint[3] : 0;
+    const d = this.texData;
+    let o = this.texCount * 8;
+    const push = (lx, ly, u, v) => {
+      d[o++] = rx(lx, ly); d[o++] = ry(lx, ly); d[o++] = u; d[o++] = v;
+      d[o++] = tr; d[o++] = tg; d[o++] = tb; d[o++] = ta;
+    };
+    push(-hw, -hh, u0, v0);  push(hw, -hh, u1, v0);  push(-hw, hh, u0, v1);
+    push(hw, -hh, u1, v0);   push(hw, hh, u1, v1);   push(-hw, hh, u0, v1);
+    this.texCount += VERTS_PER_QUAD;
+  }
+
   flushTex() {
     const gl = this.gl;
     if (this.texCount === 0) return;

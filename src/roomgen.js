@@ -285,8 +285,32 @@ export function generateRoomTiles(room) {
   room.spawnCols = computeSpawnCols(grid); // open floor spots for enemy spawning
   room.debris = computeDebris(grid);       // decorative ground clutter
   room.breakables = computeBreakables(grid, room.origin); // vases + torches
+  room.spikes = computeSpikes(grid, room.origin);         // spike-trap floor blocks
   room.chest = computeChest(room.origin, room.spawnCols); // ~1/3 of rooms
   return gridToTiles(grid, room);
+}
+
+// Spike-trap blocks: sit on a stand-surface cell (solid, empty above) so the block
+// is a normal solid tile the player can stand on, with the spikes rising into the
+// open cell above it. The cell is already solid in the grid, so collision is the
+// usual floor tile — only the state/hazard is tracked here. `x,y` is the block's
+// top-left (its top is the surface the player stands on). Persisted on the room.
+function computeSpikes(grid, origin) {
+  const surfaces = [];
+  for (let r = 2; r <= ROWS - 1; r++)
+    for (let c = 2; c <= COLS - 3; c++)
+      if (grid[r][c] && !grid[r - 1][c]) surfaces.push({ c, r });
+  shuffle(surfaces);
+  const n = (Math.random() * 3) | 0; // 0..2 per room
+  const out = [];
+  for (let i = 0; i < n && i < surfaces.length; i++) {
+    const { c, r } = surfaces[i];
+    out.push({
+      x: origin.x + c * TILE, y: origin.y + r * TILE,
+      phase: "idle", timer: 0, animT: 0, frame: 0,
+    });
+  }
+  return out;
 }
 
 // Clear a wide band beside the ledge (down to the floor) so a fresh staircase —
