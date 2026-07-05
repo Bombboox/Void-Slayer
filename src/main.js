@@ -7,7 +7,7 @@ import { initInput, pollInput, consumeReset } from "./input.js";
 import { Renderer } from "./renderer.js";
 import * as W from "./world.js";
 import { loadSprite, loadImage } from "./sprite.js";
-import { createLilguy, createEyefly, createDeepblue, createBuh, updateEnemy, enemyBoxes, drawEnemy, drawBuh, damageEnemy } from "./enemy.js";
+import { createLilguy, createEyefly, createDeepblue, createBuh, createKisser, updateEnemy, enemyBoxes, drawEnemy, drawBuh, damageEnemy } from "./enemy.js";
 import { createHealthBar, updateHealthBar, shakeHealthBar, drawHealthBar } from "./healthbar.js";
 import { playMusic, unlockAudio, playSound, preloadSound } from "./audio.js";
 import { createExpParticles, burstExp, updateExpParticles, drainExpParticles } from "./expparticles.js";
@@ -47,9 +47,19 @@ document.addEventListener("fullscreenchange", onResize);
 
 initInput();
 
+// Music: ambient exploration track vs. a random mini-boss battle theme. setMusic
+// only swaps when the track actually changes, so it doesn't restart every room.
+const AMBIENT_MUSIC = "./sounds/music/Distant Nightmaree.wav";
+const BATTLE_THEMES = ["./sounds/music/battle_themes/mini boss/Robot.wav"]; // random pick; one for now
+let currentMusic = null;
+function setMusic(url, vol = 0.5) {
+  if (url === currentMusic) return;
+  currentMusic = url;
+  playMusic(url, vol);
+}
 // Loop the ambience. It's requested now but only starts once the browser lets
 // audio play — on the player's first key press or click (autoplay policy).
-playMusic("./sounds/music/Distant Nightmaree.wav", 0.5);
+setMusic(AMBIENT_MUSIC, 0.5);
 const unlockOnce = () => unlockAudio();
 window.addEventListener("keydown", unlockOnce);
 window.addEventListener("pointerdown", unlockOnce);
@@ -74,6 +84,10 @@ const SFX = {
   chestUnlock: "./sounds/effects/chest_unlock.mp3",
   warning: "./sounds/effects/warning.mp3",
   spikeActivate: "./sounds/effects/spike_activate.mp3",
+  cleaverSwing: "./sounds/effects/cleaver_swing.mp3",
+  punch: "./sounds/effects/punch.mp3",
+  growl: "./sounds/effects/growling.mp3",
+  rumble: "./sounds/effects/rumble.mp3",
 };
 const VASE_SFX = [SFX.vase1, SFX.vase2, SFX.vase3, SFX.vase4];
 for (const url of Object.values(SFX)) preloadSound(url);
@@ -125,6 +139,31 @@ window.addEventListener("click", (e) => {
 // ── World / player state ─────────────────────────────────────────────────────
 let player, bullets, enemies, enemyShots, cur, transition, exitCooldown;
 
+// Collision tiles for the current room = its solid tiles plus any active smoke
+// columns (battle rooms). Rebuilt on room entry; everything that moves collides
+// against this rather than cur.tiles directly.
+let collTiles = [];
+function smokeRects(room) {
+  if (!room.battle || !room.smoke) return [];
+  const oy = room.origin.y, rects = [];
+  // Left: seal only the doorway opening (the rest of that wall is solid blocks). Done
+  // only during the fight, so the player can enter/leave otherwise.
+  if (room.smoke.left) {
+    const topY = oy + room.doorTop * C.TILE;
+    const h = (room.doorBot - room.doorTop + 1) * C.TILE;
+    rects.push({ x: room.origin.x, y: topY, w: C.TILE, h });
+  }
+  // Right: the whole boss-side column is open (no blocks), so the smoke IS the wall —
+  // it stays sealed at all times so the player can't walk off that edge.
+  if (room.smoke.right) {
+    rects.push({ x: room.origin.x + C.ROOM_W - C.TILE, y: oy + C.TILE, w: C.TILE, h: (C.ROOM_ROWS - 2) * C.TILE });
+  }
+  return rects;
+}
+function rebuildCollision() {
+  collTiles = cur.battle ? cur.tiles.concat(smokeRects(cur)) : cur.tiles;
+}
+
 // Rooms the player has actually entered (for the minimap). Neighbors of these,
 // reachable through a door, are "known" but not yet "explored".
 const visited = new Set();
@@ -145,6 +184,25 @@ const expbar = {
 const barColor = () => `hsl(${expbar.hue}, 85%, 58%)`;
 const compColor = () => `hsl(${(expbar.hue + 180) % 360}, 90%, 62%)`; // complementary
 
+// Boss health bar (top-center) shown while a battle-room boss is alive. `displayed`
+// eases toward the true HP fraction; `shown` fades the whole bar in/out; `flash`
+// blips white when the boss is hit.
+const bossbar = { displayed: 1, shown: 0, flash: 0, hp: 1, active: false };
+function updateBossBar(dt) {
+  const boss = (cur.battle && cur.battleTriggered && cur.boss && cur.boss.hp > 0) ? cur.boss : null;
+  if (boss) {
+    if (!bossbar.active) { bossbar.active = true; bossbar.displayed = 1; bossbar.hp = 1; } // new boss -> start full
+    const frac = Math.max(0, boss.hp / boss.maxHp);
+    if (frac < bossbar.hp - 0.0001) bossbar.flash = 1; // took damage -> blip
+    bossbar.hp = frac;
+    bossbar.displayed += (frac - bossbar.displayed) * (1 - Math.exp(-dt * 8));
+  } else {
+    bossbar.active = false;
+  }
+  bossbar.shown += ((boss ? 1 : 0) - bossbar.shown) * (1 - Math.exp(-dt * 6));
+  bossbar.flash = Math.max(0, bossbar.flash - dt * 4);
+}
+
 function grantExp(amount) {
   if (amount <= 0) return;
   const before = player.level;
@@ -162,8 +220,14 @@ function grantExp(amount) {
   }
 }
 
-const sprites = { lilguy: null, eyefly: null, deepblue: null, buh: null };
+const sprites = { lilguy: null, eyefly: null, deepblue: null, buh: null, kisser: null };
 let spritesReady = false;
+// The kisser mini-boss lives in a subfolder with a different filename; loaded on
+// its own (the regular enemy roster doesn't wait on it).
+loadSprite("./sprites/mini%20bosses/kissy.json", "./sprites/mini%20bosses/kissy.png").then((s) => {
+  s.tex = renderer.createTexture(s.image);
+  sprites.kisser = s;
+});
 function loadEnemySprite(name) {
   return loadSprite(`./sprites/${name}.json`, `./sprites/${name}.png`).then((s) => {
     s.tex = renderer.createTexture(s.image);
@@ -189,17 +253,17 @@ function roomEnemies(room) {
   return room.enemies || [];
 }
 
-// Block texture for solid tiles (falls back to flat color until it loads).
-let blockTex = null;
-loadImage("./sprites/block.png").then((img) => {
-  blockTex = renderer.createTexture(img);
-});
+// Block textures for solid tiles — one per biome (falls back to flat color until
+// they load). The biome noise (below) picks which per tile.
+let blockTex = null, block2Tex = null;
+loadImage("./sprites/block.png").then((img) => { blockTex = renderer.createTexture(img); });
+loadImage("./sprites/block2.png").then((img) => { block2Tex = renderer.createTexture(img); });
 
-// Looping brick texture for the room background (REPEAT-wrapped for tiling).
-let brickTex = null;
-loadImage("./sprites/brick_background.png").then((img) => {
-  brickTex = renderer.createTexture(img, true);
-});
+// Looping background textures — one per biome (REPEAT-wrapped for tiling). Any
+// background can pair with any block: they're chosen by independent noise fields.
+let brickTex = null, stoneTex = null;
+loadImage("./sprites/brick_background.png").then((img) => { brickTex = renderer.createTexture(img, true); });
+loadImage("./sprites/stone_background.png").then((img) => { stoneTex = renderer.createTexture(img, true); });
 
 // Decorative debris sprite sheet (a strip of 32x32 variants).
 let debrisSprite = null;
@@ -237,6 +301,16 @@ const TORCH_FRAMES = 8, TORCH_FPS = 10;
 let torchTex = null;
 loadImage("./sprites/torch.png").then((img) => { torchTex = renderer.createTexture(img); });
 
+// Battle-arena decor: animated smoke column (4-frame 32x32 strip) + an animated
+// banner (6-frame 32x64 strip that stands on the ground).
+const BANNER_FPS = 8;
+let smokeTex = null, bannerSprite = null;
+loadImage("./sprites/smoke.png").then((img) => { smokeTex = renderer.createTexture(img); });
+loadSprite("./sprites/banner.json", "./sprites/banner.png").then((s) => {
+  s.tex = renderer.createTexture(s.image);
+  bannerSprite = s;
+});
+
 // Chests (silver/gold, 5-frame open animation each).
 const CHEST_FPS = 12;
 let chestSprite = null;
@@ -253,10 +327,19 @@ loadSprite("./sprites/spike.json", "./sprites/spike.png").then((s) => {
   spikeSprite = s;
 });
 
+// Swinger hazard (base / rings / swinger head). Rows: base, rings, swinger (side
+// piece + center piece). The head is 3 tiles wide: side | center | side(flipped).
+let swingerSprite = null;
+loadSprite("./sprites/swinger.json", "./sprites/swinger.png").then((s) => {
+  s.tex = renderer.createTexture(s.image);
+  swingerSprite = s;
+});
+
 // Floating damage numbers and loose pickups.
 const dmgfx = createDamageNumbers();
 let pickups = [];
 let gameClock = 0; // advances only while unpaused; drives prop animation
+let biomeSeed = 0; // re-rolled each reset (death / R / refresh); randomizes the biome layout
 
 // ── Inventory / stats menu state ──────────────────────────────────────────────
 let menuOpen = false;
@@ -288,6 +371,7 @@ function eyeflyPos(room, col, bb, floorTop) {
 }
 
 function spawnEnemies(room) {
+  if (room.battle) return []; // arenas populate via the (later) mini-boss fight, not here
   const list = [];
   // Only spawn on open, reachable floor columns (computed by the generator), so
   // enemies never end up sealed inside a structure. Draw distinct columns.
@@ -339,8 +423,10 @@ function enemyCenter(e) {
 }
 
 // Has an enemy escaped the current room (jumped/walked past the perimeter, where
-// it's unreachable)? Such enemies are treated as dead.
+// it's unreachable)? Such enemies are treated as dead. NOT in battle rooms — the
+// arena is sealed, and the boss legitimately starts off-screen and walks in.
 function enemyOutOfBounds(e) {
+  if (cur.battle) return false;
   const c = enemyCenter(e);
   return c.x < cur.origin.x || c.x > cur.origin.x + C.ROOM_W ||
          c.y < cur.origin.y || c.y > cur.origin.y + C.ROOM_H;
@@ -394,8 +480,10 @@ function loadRoomEnemies() {
 }
 
 function resetGame() {
+  biomeSeed = (Math.random() * 1e9) | 0; // fresh biome layout each run
   W.resetWorld();
   cur = W.getOrCreateRoom(0, 0, null);
+  rebuildCollision();
   const s = spawnInRoom(cur);
   player = createPlayer(s.x, s.y);
   bullets = [];
@@ -451,7 +539,7 @@ function updateBullets(dt) {
     b.y += b.vy * dt;
     b.life -= dt;
     if (b.life <= 0) continue;
-    if (collidesWithTiles(cur.tiles, b.x, b.y, C.BULLET_W, C.BULLET_H)) continue;
+    if (collidesWithTiles(collTiles, b.x, b.y, C.BULLET_W, C.BULLET_H)) continue;
     const e = enemyHitByBullet(b);
     if (e) {
       const crit = Math.random() < player.critChance;
@@ -491,12 +579,15 @@ function updateBullets(dt) {
   for (const e of enemies) {
     const oob = enemyOutOfBounds(e);
     if (e.hp > 0 && !oob) { alive.push(e); continue; }
+    // Battle-room enemies give NO reward on their own — reinforcements are free kills
+    // and the boss is paid out separately (bossReward) with a big lump.
+    if (cur.battle) continue;
     const c = oob ? above() : enemyCenter(e);
     burstExp(expfx, c.x, c.y, C.EXP_REWARD[e.type] ?? 20);
     lastDead = e; lastDeadOOB = oob;
   }
-  // Clearing the room: the last enemy drops silver-chest-equivalent loot.
-  if (lastDead && alive.length === 0) {
+  // Clearing a normal room: the last enemy drops silver-chest-equivalent loot.
+  if (!cur.battle && lastDead && alive.length === 0) {
     const c = lastDeadOOB ? above() : enemyCenter(lastDead);
     silverLoot(c.x, c.y);
   }
@@ -574,6 +665,85 @@ function updateSpikes(dt) {
         overlaps(player.x, player.y, C.PW, C.PH, b.x, b.y, b.w, b.h));
       if (box) { knockbackPlayer(box, C.SPIKE_DMG); break; }
     }
+  }
+}
+
+// ── Swinger hazard ────────────────────────────────────────────────────────────
+// A chain of rings hung from a fixed ceiling pivot, ending in a hazardous head.
+// The driver is a REAL pendulum integrated each frame (accel = -GRAVITY·sinθ), so
+// it accelerates through the bottom and slows at the extremes like an actual swing.
+// Each link reads the driver angle from a few frames ago (a history buffer), so the
+// top swings first and the lower links lag — a whip. Only the head deals damage;
+// the base is a normal solid ceiling tile.
+
+// Release the pendulum from the top and pre-run it (offset by its phase) so several
+// swingers aren't in lock-step; the history buffer feeds the per-link whip lag.
+function initSwinger(s) {
+  s.angle = C.SWINGER_ANGLE; s.vel = 0; s.lagFrames = C.SWINGER_LAG; s.hist = [];
+  const need = (s.rings + 1) * s.lagFrames + 2;
+  const pre = ((s.phase / (2 * Math.PI)) * 260) | 0;
+  const fdt = 1 / 60;
+  for (let k = 0; k < pre + need; k++) {
+    s.vel += -C.SWINGER_GRAVITY * Math.sin(s.angle) * fdt;
+    s.angle += s.vel * fdt;
+    s.hist.push(s.angle);
+  }
+  while (s.hist.length > need) s.hist.shift();
+}
+
+// World positions of every joint: [pivot, ring1..ringN, head]. Each link lags the
+// one above by `lagFrames` frames of history (whip effect).
+function swingerJoints(s) {
+  const segs = s.rings + 1;
+  const pts = [{ x: s.pivotX, y: s.pivotY }];
+  const H = s.hist, n = H ? H.length : 0, lf = s.lagFrames || C.SWINGER_LAG;
+  for (let i = 1; i <= segs; i++) {
+    const th = n ? H[Math.max(0, n - 1 - i * lf)] : 0;
+    const p = pts[i - 1];
+    pts.push({ x: p.x + C.SWINGER_LINK * Math.sin(th), y: p.y + C.SWINGER_LINK * Math.cos(th) });
+  }
+  return pts;
+}
+
+// World-space hurtboxes of the head (side | center | side-flipped), each 32x32.
+function swingerHurtboxes(s) {
+  if (!swingerSprite) return [];
+  const pts = swingerJoints(s);
+  const h = pts[pts.length - 1];
+  const side = swingerSprite.clips.swinger.frames[0];   // side piece (drawn facing left)
+  const center = swingerSprite.clips.swinger.frames[1]; // center piece
+  const top = h.y - C.TILE / 2;
+  const out = [];
+  const add = (frame, left, flip) => {
+    for (const b of frame.hurtboxes) {
+      const x = flip ? left + (C.TILE - b.x - b.width) : left + b.x;
+      out.push({ x, y: top + b.y, w: b.width, h: b.height });
+    }
+  };
+  add(side,   h.x - C.TILE * 1.5, false); // left
+  add(center, h.x - C.TILE / 2,   false); // center
+  add(side,   h.x + C.TILE / 2,   true);  // right (flipped)
+  return out;
+}
+
+function stepSwingers(dt) {
+  if (!swingerSprite || !cur.swingers || !cur.swingers.length) return;
+  // Advance each pendulum (symplectic Euler: energy-stable, no drift), recording
+  // the driver angle into its history buffer for the whip lag.
+  for (const s of cur.swingers) {
+    if (s.angle === undefined) initSwinger(s);
+    s.vel += -C.SWINGER_GRAVITY * Math.sin(s.angle) * dt;
+    s.angle += s.vel * dt;
+    s.hist.push(s.angle);
+    const need = (s.rings + 1) * s.lagFrames + 2;
+    while (s.hist.length > need) s.hist.shift();
+  }
+  // The head impales the player (i-frames gate repeat hits).
+  if (player.invuln > 0) return;
+  for (const s of cur.swingers) {
+    const box = swingerHurtboxes(s).find((b) =>
+      overlaps(player.x, player.y, C.PW, C.PH, b.x, b.y, b.w, b.h));
+    if (box) { knockbackPlayer(box, C.SWINGER_DMG); break; }
   }
 }
 
@@ -671,18 +841,40 @@ function collectPickup(p) {
 
 function updateEnemies(dt) {
   const shotsBefore = enemyShots.length;
-  for (const e of enemies) updateEnemy(e, dt, cur.tiles, player, enemyShots);
+  for (const e of enemies) updateEnemy(e, dt, collTiles, player, enemyShots);
 
-  // Attack sounds. Deepblue: the frame it spawns a plasma (a new shot appears).
-  if (enemyShots.length > shotsBefore) playSound(SFX.deepblueFire, 0.5, 0.08);
-  // Lilguy/eyefly: the frame their hurtbox first appears (rising edge).
+  // Deepblue: the frame it spawns a plasma (a new NON-flame shot appears). Kisser
+  // flames stream in every few frames and get a single growl instead (below).
+  let newPlasma = false;
+  for (let i = shotsBefore; i < enemyShots.length; i++)
+    if (enemyShots[i].type !== "flame") { newPlasma = true; break; }
+  if (newPlasma) playSound(SFX.deepblueFire, 0.5, 0.08);
+
   for (const e of enemies) {
+    // Lilguy/eyefly: attack sound the frame their hurtbox first appears (rising edge).
     const hurtActive = !!(e.boxes && e.boxes.hurt.length > 0);
     if (hurtActive && !e.hadHurt) {
       if (e.type === "lilguy") playSound(SFX.lilguySlash, 0.5, 0.08);
       else if (e.type === "eyefly") playSound(SFX.eyeflyStab, 0.5, 0.08);
     }
     e.hadHurt = hurtActive;
+    // Kisser: its hurtboxes are on every frame, so we can't key melee sounds off them.
+    // Re-arm each new action (mode change), then play the punch/cleaver around the
+    // MIDDLE of its animation (when the swing actually lands), once per attack. The
+    // flamethrower growl fires on the firing rising edge.
+    if (e.type === "kisser") {
+      if (e.mode !== e.prevMode) e.meleeSfxDone = false; // new action -> re-arm
+      if (!e.meleeSfxDone && (e.mode === "cleaver_attack" || e.mode === "punch_attack")) {
+        const clip = e.sprite.clips[e.mode];
+        if (e.frame >= (clip.count >> 1)) { // reached the mid-swing frame
+          playSound(e.mode === "cleaver_attack" ? SFX.cleaverSwing : SFX.punch, 0.6, 0.06);
+          e.meleeSfxDone = true;
+        }
+      }
+      e.prevMode = e.mode;
+      if (e.firing && !e.hadFiring) playSound(SFX.growl, 0.6, 0.05);
+      e.hadFiring = e.firing;
+    }
   }
 
   // Touching an enemy's hurtbox (its attack) or hitbox (its body) knocks the
@@ -693,25 +885,47 @@ function updateEnemies(dt) {
       const box = [...hurt, ...hit].find((b) =>
         overlaps(player.x, player.y, C.PW, C.PH, b.x, b.y, b.w, b.h)
       );
-      if (box) { knockbackPlayer(box, C.DMG_ENEMY_TOUCH * e.powerMult); break; }
+      if (box) { knockbackPlayer(box, (e.touchDmg ?? C.DMG_ENEMY_TOUCH) * e.powerMult); break; }
     }
   }
 }
 
-// Enemy plasma projectiles: fly straight, die on tiles/expiry, knock the player.
+// Enemy projectiles: plasma (flies straight, phases walls) and the kisser's flames
+// (arc under gravity, die on terrain). Both knock the player and expire on lifetime.
 function updateEnemyShots(dt) {
   const sz = C.PLASMA_SIZE;
+  // World AABB of a shot: flames are center-anchored (size), plasma is top-left.
+  const box = (s) => s.type === "flame"
+    ? { x: s.x - s.size / 2, y: s.y - s.size / 2, w: s.size, h: s.size }
+    : { x: s.x, y: s.y, w: sz, h: sz };
   for (const s of enemyShots) {
-    s.x += s.vx * dt;
-    s.y += s.vy * dt;
     s.life -= dt;
+    if (s.type === "flame") {
+      // Bounce like a ball: move each axis, and on a collision reflect that axis
+      // (dampened) instead of moving into the tile. Ground bounces are counted; after
+      // FLAME_BOUNCE_MAX the fireball fizzles out.
+      const half = s.size / 2;
+      const hits = (x, y) => collidesWithTiles(collTiles, x - half, y - half, s.size, s.size);
+      const nx = s.x + s.vx * dt;
+      if (hits(nx, s.y)) s.vx = -s.vx * C.FLAME_RESTITUTION; else s.x = nx;
+      s.vy += C.FLAME_GRAVITY * dt;
+      const ny = s.y + s.vy * dt;
+      if (hits(s.x, ny)) {
+        if (s.vy > 0 && ++s.bounces > C.FLAME_BOUNCE_MAX) s.life = 0; // spent
+        s.vy = -s.vy * C.FLAME_RESTITUTION;
+      } else s.y = ny;
+    } else {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+    }
   }
-  // Plasma phases through walls; only lifetime (and hitting the player) ends it.
   enemyShots = enemyShots.filter((s) => s.life > 0);
   if (player.invuln <= 0) {
     for (const s of enemyShots) {
-      if (overlaps(player.x, player.y, C.PW, C.PH, s.x, s.y, sz, sz)) {
-        knockbackPlayer({ x: s.x, y: s.y, w: sz, h: sz }, C.DMG_PLASMA * (s.powerMult ?? 1));
+      const b = box(s);
+      if (overlaps(player.x, player.y, C.PW, C.PH, b.x, b.y, b.w, b.h)) {
+        const dmg = (s.type === "flame" ? C.FLAME_DMG : C.DMG_PLASMA) * (s.powerMult ?? 1);
+        knockbackPlayer(b, dmg);
         s.life = 0;
         break;
       }
@@ -769,6 +983,8 @@ function entrancePos(room, enterSide, p) {
 // Arrive in a new room: place the player, load its (persisted) enemies, clean up.
 function enterRoom(nb, ent) {
   cur = nb;
+  rebuildCollision();
+  setMusic(AMBIENT_MUSIC); // back to ambient on leaving a battle room (no-op otherwise)
   player.x = ent.x; player.y = ent.y;
   player.vx = ent.vx; player.vy = ent.vy;
   // Reset transient air/dash state so the new room starts clean.
@@ -830,26 +1046,239 @@ function checkExit() {
   if (side) startTransition(side);
 }
 
+// ── Battle rooms ──────────────────────────────────────────────────────────────
+function updateBattle(dt) {
+  if (!cur.battle) return;
+
+  // Pre-battle intro: the screen shakes and the holy light fades out, then a brief
+  // dark/quiet beat for suspense, and only then does the real fight begin (music +
+  // boss). No music/boss until the suspense elapses.
+  if (cur.battleIntro) {
+    cur.introTimer -= dt;
+    cur.lightFade = Math.max(0, cur.introTimer / C.BATTLE_INTRO_TIME);
+    if (cur.introTimer <= 0) { cur.battleIntro = false; cur.suspenseTimer = C.BATTLE_SUSPENSE_TIME; }
+    return;
+  }
+  if (cur.suspenseTimer > 0) {
+    cur.suspenseTimer -= dt;
+    if (cur.suspenseTimer <= 0) startBattle(cur);
+    return;
+  }
+
+  if (!cur.battleTriggered) {
+    if (!sprites.kisser) return; // wait for the boss art before the fight can begin
+    // Standing on the floor in the middle of the holy light column starts it.
+    const pcx = player.x + C.PW / 2;
+    const inColumn = Math.abs(pcx - cur.lightX) < (C.LIGHT_COL_TILES / 2) * C.TILE;
+    const onFloor = player.onGround && player.y + C.PH >= cur.floorTop - 8;
+    if (inColumn && onFloor) beginBattleIntro(cur);
+    return;
+  }
+  // Boss defeated -> clear the smoke so the exit opens, and drop back to ambient.
+  if (cur.boss && cur.boss.hp <= 0 && !cur.battleWon) {
+    cur.battleWon = true;
+    // Reopen the entrance, but keep the boss-side smoke — it's the only wall there.
+    cur.smoke = { left: false, right: true };
+    rebuildCollision();
+    setMusic(AMBIENT_MUSIC);
+    bossReward(cur.boss); // huge exp + items + 3 silver chests' worth of loot
+  }
+  // While the fight is on, keep dropping pairs of enemies through the ceiling gaps.
+  if (!cur.battleWon) {
+    cur.reinforceTimer -= dt;
+    if (cur.reinforceTimer <= 0) {
+      spawnReinforcements(cur);
+      cur.reinforceTimer = C.BATTLE_REINFORCE_MIN + Math.random() * (C.BATTLE_REINFORCE_MAX - C.BATTLE_REINFORCE_MIN);
+    }
+  }
+}
+
+// Drop a pair of enemies in from off-screen above, through the ceiling gaps, so they
+// fall into the arena. Grounded types only (they fall and land); the buh is skipped
+// since it hovers when it spawns already "attached".
+const REINFORCE_BAG = ["lilguy", "lilguy", "deepblue", "eyefly"];
+function spawnReinforcements(room) {
+  const gaps = room.ceilingGaps || [];
+  if (!gaps.length) return;
+  const mult = 1 + C.ENEMY_SCALE_PER_LEVEL * player.level;
+  const y = room.origin.y - 2 * C.TILE; // above the ceiling (hidden by the mask until it falls in)
+  for (let i = 0; i < C.BATTLE_REINFORCE_PAIR; i++) {
+    const g = gaps[i % gaps.length];               // spread the pair across both gaps
+    const cx = g.cx + (Math.random() * 2 - 1) * C.TILE; // small jitter within the gap
+    const type = REINFORCE_BAG[(Math.random() * REINFORCE_BAG.length) | 0];
+    let e = null;
+    if (type === "eyefly" && sprites.eyefly) {
+      e = createEyefly(cx - sprites.eyefly.bodyBox.w / 2, y, sprites.eyefly, room);
+      // The eyefly's flight AI caps its speed, so a downward shove alone washes out and
+      // it drifts off above the ceiling. Aim its patrol straight down through the gap so
+      // it commits to entering the arena.
+      e.patrolX = e.x;
+      e.patrolY = room.origin.y + C.ROOM_H * 0.4;
+    } else if (type === "deepblue" && sprites.deepblue) {
+      e = createDeepblue(cx - sprites.deepblue.bodyBox.w / 2, y, sprites.deepblue);
+    } else if (sprites.lilguy) {
+      e = createLilguy(cx - sprites.lilguy.bodyBox.w / 2, y, sprites.lilguy);
+    }
+    if (e) {
+      e.vy = C.BATTLE_DROP_VY; // knock them downward so they fall into the room
+      e.hp *= mult; e.maxHp *= mult; e.powerMult = mult;
+      enemies.push(e);
+    }
+  }
+}
+
+// Big kill payout, granted the moment the boss dies.
+function bossReward(boss) {
+  const c = enemyCenter(boss);
+  // A ton of exp — many bursts so it really rains particles across the arena.
+  for (let i = 0; i < 10; i++) {
+    burstExp(expfx, c.x + (Math.random() * 2 - 1) * 60, c.y + (Math.random() * 2 - 1) * 40, C.KISSER_EXP_REWARD / 10);
+  }
+  dropItemPickups(c.x, c.y, ri(1, 2));         // 1-2 equippable items
+  for (let i = 0; i < 3; i++) silverLoot(c.x, c.y); // loot worth three silver chests
+}
+
+// The player standing in the light kicks off the intro (shake + light fade); the
+// fight itself starts once that finishes (startBattle).
+function beginBattleIntro(room) {
+  room.battleIntro = true;
+  room.introTimer = C.BATTLE_INTRO_TIME;
+  room.lightFade = 1;
+  room.smoke = { left: true, right: true }; // seal the entrance now
+  rebuildCollision();
+  addShake(C.BATTLE_SHAKE_MAG, C.BATTLE_INTRO_TIME);
+  playSound(SFX.rumble, 0.6); 
+}
+
+function startBattle(room) {
+  room.battleTriggered = true;
+  room.reinforceTimer = C.BATTLE_REINFORCE_MIN; // first drop a while in
+  setMusic(BATTLE_THEMES[(Math.random() * BATTLE_THEMES.length) | 0], 0.6);
+  // The kisser starts off-screen past the (right) boss side and walks in through the
+  // smoke; its "enter" mode carries it in before it starts fighting.
+  const bb = sprites.kisser.bodyBox, y = room.floorTop - bb.h;
+  // Fully off-screen to the right (its 192px sprite clears the room edge), then it
+  // walks in — the out-of-bounds mask keeps it hidden until it crosses the wall.
+  const boss = createKisser(room.origin.x + C.ROOM_W + 5 * C.TILE, y, sprites.kisser);
+  boss.facing = -1;
+  boss.mode = "enter";
+  boss.enterY = y;
+  boss.enterTargetX = room.origin.x + C.ROOM_W - 6 * C.TILE - bb.w;
+  const mult = 1 + C.ENEMY_SCALE_PER_LEVEL * player.level; // scale like other spawns
+  boss.hp *= mult; boss.maxHp *= mult; boss.powerMult = mult;
+  enemies.push(boss);
+  room.boss = boss;
+}
+
 // ── Rendering ─────────────────────────────────────────────────────────────────
+// ── Biomes ────────────────────────────────────────────────────────────────────
+// Which block / background to use is picked by low-frequency value noise over the
+// WORLD tile grid, so biomes span multiple rooms (adjacent rooms sample continuous
+// noise) yet can also change part-way through a room. Blocks and backgrounds use
+// independent noise fields (different seeds/scales), so any background can pair
+// with any block. `1` returns the alternate texture, `0` the default. `biomeSeed`
+// (declared up top so resetGame can set it) is re-rolled on every reset (death / R
+// / refresh) so the biome layout differs.
+function biomeHash(x, y) {
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function biomeNoise(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const s = (t) => t * t * (3 - 2 * t), sx = s(xf), sy = s(yf);
+  const v00 = biomeHash(xi + seed, yi), v10 = biomeHash(xi + 1 + seed, yi);
+  const v01 = biomeHash(xi + seed, yi + 1), v11 = biomeHash(xi + 1 + seed, yi + 1);
+  const a = v00 + (v10 - v00) * sx, b = v01 + (v11 - v01) * sx;
+  return a + (b - a) * sy;
+}
+// Sampled in *rooms* (worldTile / ROOM_COLS|ROWS) so "scale" reads as room-counts.
+const blockBiome = (wtx, wty) =>
+  biomeNoise(wtx / (C.ROOM_COLS * 1.7), wty / (C.ROOM_ROWS * 1.7), 1013 + biomeSeed) > 0.5 ? 1 : 0;
+const bgNoise = (wtx, wty) =>
+  biomeNoise(wtx / (C.ROOM_COLS * 2.1), wty / (C.ROOM_ROWS * 2.1), 5077 + biomeSeed);
+
+// EXPERIMENTAL — how the brick<->stone background seam is drawn:
+//   "blur"   — a real cross-fade of the two textures across the band (smooth)
+//   "dither" — ordered (Bayer) dithered stipple band (kept for comparison)
+//   "hard"   — crisp boundary (original)
+// BG_BLUR_BAND sets the band width (0 => crisp regardless of mode).
+const BG_BLEND = "blur";
+const BG_BLUR_BAND = 0.02;   // ~5-tile soft edge; larger = wider fade, 0 = crisp
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+// Continuous stone fraction at a world tile corner: 0 = brick, 1 = stone.
+function bgStoneBlend(wtx, wty) {
+  const n = bgNoise(wtx, wty);
+  if (BG_BLUR_BAND <= 0) return n > 0.5 ? 1 : 0;
+  const t = (n - (0.5 - BG_BLUR_BAND)) / (2 * BG_BLUR_BAND);
+  return t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t); // smoothstep
+}
+// Discrete pick for the "hard"/"dither" (run-merged) paths.
+function bgBiome(wtx, wty) {
+  const t = bgStoneBlend(wtx, wty);
+  if (BG_BLEND === "dither") return t > (BAYER4[((wty & 3) << 2) | (wtx & 3)] + 0.5) / 16 ? 1 : 0;
+  return t >= 0.5 ? 1 : 0;
+}
+
 function drawRoom(room) {
-  // Tiled brick background behind the blocks. World-space UVs keep the pattern
-  // continuous across rooms; it gets lit/darkened by the lighting pass.
-  if (brickTex) {
-    const ox = room.origin.x, oy = room.origin.y;
-    renderer.drawSprite(
-      brickTex, ox, oy, C.ROOM_W, C.ROOM_H,
-      ox / C.BG_TILE, oy / C.BG_TILE,
-      (ox + C.ROOM_W) / C.BG_TILE, (oy + C.ROOM_H) / C.BG_TILE
-    );
+  const ox = room.origin.x, oy = room.origin.y;
+  const baseCol = (ox / C.TILE) | 0, baseRow = (oy / C.TILE) | 0; // world tile coords
+  // Tiled background behind the blocks. World-space UVs keep the pattern continuous
+  // across rooms; the biome noise picks brick vs stone, merged into per-row runs so
+  // a mid-room biome boundary is a clean seam. Lit/darkened by the lighting pass.
+  const bgTex = [brickTex, stoneTex];
+  const uv = (x) => x / C.BG_TILE;
+  if (bgTex[0] && bgTex[1]) {
+    if (BG_BLEND === "blur") {
+      // Brick base for the whole room, then stone cross-faded on top. Per cell we
+      // sample the blend at its 4 corners and let the GPU interpolate, so the seam
+      // is a smooth gradient rather than a per-tile step.
+      renderer.drawSprite(bgTex[0], ox, oy, C.ROOM_W, C.ROOM_H,
+        uv(ox), uv(oy), uv(ox + C.ROOM_W), uv(oy + C.ROOM_H));
+      for (let r = 0; r < C.ROOM_ROWS; r++) {
+        const y0 = oy + r * C.TILE, y1 = y0 + C.TILE, wty = baseRow + r;
+        for (let c = 0; c < C.ROOM_COLS; c++) {
+          const wtx = baseCol + c;
+          const tl = bgStoneBlend(wtx, wty), tr = bgStoneBlend(wtx + 1, wty);
+          const bl = bgStoneBlend(wtx, wty + 1), br = bgStoneBlend(wtx + 1, wty + 1);
+          if (tl <= 0 && tr <= 0 && bl <= 0 && br <= 0) continue; // all brick
+          const x0 = ox + c * C.TILE, x1 = x0 + C.TILE;
+          if (tl >= 1 && tr >= 1 && bl >= 1 && br >= 1)           // all stone
+            renderer.drawSprite(bgTex[1], x0, y0, C.TILE, C.TILE, uv(x0), uv(y0), uv(x1), uv(y1));
+          else                                                    // transition: fade
+            renderer.drawSpriteFade(bgTex[1], x0, y0, C.TILE, C.TILE, uv(x0), uv(y0), uv(x1), uv(y1), tl, tr, bl, br);
+        }
+      }
+    } else {
+      for (let r = 0; r < C.ROOM_ROWS; r++) {
+        const y0 = oy + r * C.TILE, y1 = y0 + C.TILE;
+        let c = 0;
+        while (c < C.ROOM_COLS) {
+          const b = bgBiome(baseCol + c, baseRow + r);
+          let c1 = c;
+          while (c1 + 1 < C.ROOM_COLS && bgBiome(baseCol + c1 + 1, baseRow + r) === b) c1++;
+          const x0 = ox + c * C.TILE, x1 = ox + (c1 + 1) * C.TILE;
+          renderer.drawSprite(bgTex[b], x0, y0, x1 - x0, y1 - y0, uv(x0), uv(y0), uv(x1), uv(y1));
+          c = c1 + 1;
+        }
+      }
+    }
     // Mute the busy pattern so it sits back as a backdrop, not a distraction.
     renderer.drawRect(ox, oy, C.ROOM_W, C.ROOM_H, [0.03, 0.04, 0.07, 0.55]);
   }
+  const blkTex = [blockTex, block2Tex];
   for (const t of room.tiles) {
-    if (blockTex) {
-      // Tiles are merged horizontal runs; tile the block image one cell wide.
+    if (blkTex[0] && blkTex[1]) {
+      // Tiles are merged horizontal runs; tile one cell wide, picking the block by
+      // biome so the block type can change part-way across the room.
       for (let x = t.x; x < t.x + t.w; x += C.TILE) {
-        renderer.drawSprite(blockTex, x, t.y, C.TILE, C.TILE, 0, 0, 1, 1);
+        const b = blockBiome((x / C.TILE) | 0, (t.y / C.TILE) | 0);
+        renderer.drawSprite(blkTex[b], x, t.y, C.TILE, C.TILE, 0, 0, 1, 1);
       }
+    } else if (blockTex) {
+      for (let x = t.x; x < t.x + t.w; x += C.TILE)
+        renderer.drawSprite(blockTex, x, t.y, C.TILE, C.TILE, 0, 0, 1, 1);
     } else {
       renderer.drawRect(t.x, t.y, t.w, t.h, [t.r, t.g, t.b, 1]);
       renderer.drawRect(t.x, t.y, t.w, 3, [
@@ -914,6 +1343,99 @@ function drawSpikes(room) {
   }
 }
 
+// Swinger hazards: the base tile, the chain of rings down to the head, then the
+// head's three pieces (side | center | side-flipped). Positions come from the
+// live chain kinematics, so it draws wherever the pendulum currently is.
+function drawSwingers(room) {
+  if (!swingerSprite || !room.swingers) return;
+  const base = swingerSprite.clips.base.frames[0];
+  const ring = swingerSprite.clips.rings.frames[0];
+  const side = swingerSprite.clips.swinger.frames[0];
+  const center = swingerSprite.clips.swinger.frames[1];
+  const T = C.TILE, tex = swingerSprite.tex;
+  const draw = (f, x, y, flip) => renderer.drawSprite(tex, x, y, T, T, f.u0, f.v0, f.u1, f.v1, !!flip);
+  for (const s of room.swingers) {
+    const pts = swingerJoints(s);
+    draw(base, s.x, s.y, false);                                  // base (anchor) tile
+    for (let i = 1; i <= s.rings; i++)                            // chain rings
+      draw(ring, pts[i].x - T / 2, pts[i].y - T / 2, false);
+    const h = pts[pts.length - 1];                                // head (3 pieces)
+    draw(side,   h.x - T * 1.5, h.y - T / 2, false);
+    draw(center, h.x - T / 2,   h.y - T / 2, false);
+    draw(side,   h.x + T / 2,   h.y - T / 2, true);
+    renderer.addLight(h.x, h.y, 46, [1.0, 0.5, 0.2], 0.45);       // menacing glow
+  }
+}
+
+// ── Battle-arena decor ────────────────────────────────────────────────────────
+function drawBanners(room) {
+  if (!bannerSprite || !room.banners) return;
+  const clip = bannerSprite.clips.idle;
+  for (const b of room.banners) {
+    // Slight per-banner phase so the pair doesn't wave in perfect lock-step.
+    const fr = (((gameClock + b.x * 0.01) * BANNER_FPS) | 0) % clip.count;
+    const f = clip.frames[fr];
+    renderer.drawSprite(bannerSprite.tex, b.x, b.y, b.w, b.h, f.u0, f.v0, f.u1, f.v1, b.flip);
+  }
+}
+
+// The holy light column from the sky in the middle of the arena; fades once the
+// battle has been triggered.
+function drawLightColumn(room) {
+  if (room.battleTriggered) return;
+  const fade = room.lightFade ?? 1; // 1 normally; eases to 0 through the intro
+  if (fade <= 0) return;
+  const w = C.LIGHT_COL_TILES * C.TILE;
+  const x = room.lightX - w / 2, oy = room.origin.y, h = room.floorTop - oy;
+  const pulse = (0.85 + 0.15 * Math.sin(gameClock * 2.2)) * fade;
+  renderer.drawRect(x, oy, w, h, [1.0, 0.96, 0.75, 0.09 * pulse]);
+  renderer.drawRect(x + w * 0.22, oy, w * 0.56, h, [1.0, 0.98, 0.86, 0.10 * pulse]);
+  renderer.drawRect(x - 8, room.floorTop - 12, w + 16, 12, [1.0, 0.95, 0.72, 0.22 * pulse]); // pool
+  renderer.addLight(room.lightX, oy + h * 0.3, 170, [1.0, 0.95, 0.72], 0.5 * pulse);
+  renderer.addLight(room.lightX, room.floorTop - 22, 140, [1.0, 0.96, 0.8], 0.85 * pulse);
+}
+
+// The wall of smoke blocking the exit (and, later, the sealed entrance). Animated
+// per-cell from the 4-frame strip, with a soft grey glow.
+function drawSmoke(room) {
+  if (!smokeTex || !room.smoke) return;
+  const oy = room.origin.y;
+  const uvFor = (ph) => { const f = ph % C.SMOKE_FRAMES; return [f / C.SMOKE_FRAMES, (f + 1) / C.SMOKE_FRAMES]; };
+  // A column of square (block-sized) smoke cells over an OPENING only, so it never
+  // paints over real wall blocks.
+  const column = (x, r0, r1) => {
+    for (let r = r0; r <= r1; r++) {
+      const [u0, u1] = uvFor(((gameClock * C.SMOKE_FPS) | 0) + r * 3);
+      renderer.drawSprite(smokeTex, x, oy + r * C.TILE, C.TILE, C.TILE, u0, 0, u1, 1);
+    }
+    renderer.addLight(x + C.TILE / 2, oy + ((r0 + r1) / 2) * C.TILE, 100, [0.5, 0.5, 0.55], 0.45);
+  };
+  // Left fills just the doorway; right fills the whole (block-less) boss-side column.
+  if (room.smoke.left)  column(room.origin.x, room.doorTop, room.doorBot);
+  if (room.smoke.right) column(room.origin.x + C.ROOM_W - C.TILE, 1, C.ROOM_ROWS - 2);
+  // Smoke plugging the ceiling gaps the reinforcements drop through (always present).
+  for (const g of (room.ceilingGaps || [])) {
+    for (let c = g.c0; c <= g.c1; c++) {
+      const [u0, u1] = uvFor(((gameClock * C.SMOKE_FPS) | 0) + c * 3);
+      renderer.drawSprite(smokeTex, room.origin.x + c * C.TILE, room.origin.y, C.TILE, C.TILE, u0, 0, u1, 1);
+    }
+    renderer.addLight(g.cx, room.origin.y + C.TILE, 90, [0.5, 0.5, 0.55], 0.4);
+  }
+}
+
+// Paint over everything outside the current room (the view's margin) with the
+// background, so off-screen actors — like the boss waiting to walk in — stay
+// hidden until they cross the perimeter.
+function maskOutOfBounds(view) {
+  const rl = cur.origin.x, rr = rl + C.ROOM_W, rt = cur.origin.y, rb = rt + C.ROOM_H;
+  const vl = view.x, vr = view.x + view.w, vt = view.y, vb = view.y + view.h;
+  const bg = [COL.bg[0], COL.bg[1], COL.bg[2], 1];
+  if (vl < rl) renderer.drawRect(vl, vt, rl - vl, vb - vt, bg);  // left band (full height)
+  if (vr > rr) renderer.drawRect(rr, vt, vr - rr, vb - vt, bg);  // right band (full height)
+  if (vt < rt) renderer.drawRect(rl, vt, rr - rl, rt - vt, bg);  // top band (between the sides)
+  if (vb > rb) renderer.drawRect(rl, rb, rr - rl, vb - rb, bg);  // bottom band
+}
+
 // The room's chest (if any). Plays its open animation once opened; gold/silver
 // each cast a subtly colored glow so they stand out.
 function drawChest(room) {
@@ -961,6 +1483,11 @@ function drawPickups() {
 
 let lastView = null; // world view rect from the latest render, for UI projection
 
+// Camera shake: a decaying random offset applied to the view. addShake(mag, dur)
+// kicks it off; shakeTime is decayed in the update loop.
+let shakeTime = 0, shakeDur = 0, shakeMag = 0;
+function addShake(mag, dur) { shakeMag = mag; shakeDur = dur; shakeTime = dur; }
+
 function render() {
   let view, px, py, drawNb = null;
   if (transition) {
@@ -976,6 +1503,11 @@ function render() {
     view = fitView(cur.origin.x, cur.origin.y);
     px = player.x; py = player.y;
   }
+  // Camera shake: jitter the whole view (decaying to zero) while a shake is active.
+  if (shakeTime > 0 && shakeDur > 0) {
+    const amp = shakeMag * (shakeTime / shakeDur);
+    view = { ...view, x: view.x + (Math.random() * 2 - 1) * amp, y: view.y + (Math.random() * 2 - 1) * amp };
+  }
   lastView = view;
 
   renderer.begin(COL.bg, view);
@@ -985,7 +1517,9 @@ function render() {
   if (!transition) {
     drawProps(cur);
     drawSpikes(cur);
+    drawSwingers(cur);
     drawChest(cur);
+    if (cur.battle) { drawBanners(cur); drawLightColumn(cur); }
 
     for (const e of enemies) {
       if (e.type === "buh") drawBuh(renderer, e); else drawEnemy(renderer, e);
@@ -1010,10 +1544,18 @@ function render() {
       renderer.drawRect(b.x, b.y, C.BULLET_W, C.BULLET_H, COL.bullet);
       renderer.addLight(b.x + C.BULLET_W / 2, b.y + C.BULLET_H / 2, 55, COL.bullet, 0.6);
     }
-    // Glowing plasma: bright core (blooms) + a colored light it casts around.
+    // Glowing plasma / flickering flames — both bloom and cast colored light.
     for (const s of enemyShots) {
-      renderer.drawRect(s.x, s.y, C.PLASMA_SIZE, C.PLASMA_SIZE, [...C.PLASMA_CORE, 1]);
-      renderer.addLight(s.x + C.PLASMA_SIZE / 2, s.y + C.PLASMA_SIZE / 2, 85, C.PLASMA_LIGHT, 0.95);
+      if (s.type === "flame") {
+        const flick = 0.8 + 0.2 * Math.sin((gameClock + s.phase) * 22);
+        const sz = s.size * (0.9 + 0.18 * Math.sin((gameClock + s.phase) * 17));
+        renderer.drawRect(s.x - sz / 2, s.y - sz / 2, sz, sz, [1.0, 0.5, 0.12, 0.95]);        // outer flame
+        renderer.drawRect(s.x - sz / 4, s.y - sz / 4, sz / 2, sz / 2, [1.0, 0.92, 0.5, 1.0]); // hot core
+        renderer.addLight(s.x, s.y, s.size * 3.2, [1.0, 0.5, 0.16], 1.1 * flick);
+      } else {
+        renderer.drawRect(s.x, s.y, C.PLASMA_SIZE, C.PLASMA_SIZE, [...C.PLASMA_CORE, 1]);
+        renderer.addLight(s.x + C.PLASMA_SIZE / 2, s.y + C.PLASMA_SIZE / 2, 85, C.PLASMA_LIGHT, 0.95);
+      }
     }
     // Colorful EXP particles (drawn at their choppy, pixel-snapped positions).
     for (const p of expfx.list) {
@@ -1022,6 +1564,8 @@ function render() {
     }
 
     drawPickups();
+    if (cur.battle) drawSmoke(cur); // in front, obscuring the sealed doorway
+    maskOutOfBounds(view);          // hide anything past the room edges (e.g. the entering boss)
   }
 
   // Flash the player while invulnerable after a hit.
@@ -1062,6 +1606,7 @@ function drawUI() {
     uiCtx.restore();
   }
   drawMinimap(uiCtx);
+  drawBossBar(uiCtx);
   drawExpBar(uiCtx);
   if (lastView) drawDamageNumbers(uiCtx, dmgfx, projectToScreen, statsImg);
   drawChestPrompt(uiCtx);
@@ -1403,6 +1948,50 @@ function updateExpBar(dt) {
   expbar.alpha += (want - expbar.alpha) * (1 - Math.exp(-dt * (want ? 12 : 4)));
 }
 
+// Chunky pixel-art boss health bar across the top-center: a beveled dark frame, a
+// notched (segmented) red fill that drains as the boss loses HP, and the boss name
+// above it in outlined monospace to match the rest of the HUD.
+function drawBossBar(ctx) {
+  if (bossbar.shown < 0.01) return;
+  const P = Math.max(2, Math.round(uiCanvas.clientHeight / 240)); // "pixel" unit for the frame
+  // Keep the centered bar clear of the top-right minimap (~200px) on narrow screens.
+  const W = Math.max(160, Math.min(560, uiCanvas.clientWidth * 0.62, uiCanvas.clientWidth - 400));
+  const H = Math.max(16, P * 7);
+  const x = Math.round((uiCanvas.clientWidth - W) / 2);
+  const y = Math.round(P * 10);
+  const frac = Math.max(0, Math.min(1, bossbar.displayed));
+
+  ctx.save();
+  ctx.globalAlpha = bossbar.shown;
+  ctx.imageSmoothingEnabled = false;
+
+  // Beveled frame: black outline, maroon border, dark inner track.
+  ctx.fillStyle = "#07090f"; ctx.fillRect(x - P * 2, y - P * 2, W + P * 4, H + P * 4);
+  ctx.fillStyle = "#5a2b39"; ctx.fillRect(x - P, y - P, W + P * 2, H + P * 2);
+  ctx.fillStyle = "#7a3c4b"; ctx.fillRect(x - P, y - P, W + P * 2, P);        // top light bevel
+  ctx.fillStyle = "#3a1a24"; ctx.fillRect(x - P, y + H, W + P * 2, P);        // bottom dark bevel
+  ctx.fillStyle = "#160a10"; ctx.fillRect(x, y, W, H);                        // inner track
+
+  // Notched red fill.
+  const segs = 40, gap = Math.max(1, Math.round(P / 2));
+  const segW = (W - gap * (segs - 1)) / segs;
+  const lit = Math.round(frac * segs);
+  const topH = Math.max(2, Math.round(H * 0.3)), botH = Math.max(2, Math.round(H * 0.22));
+  for (let i = 0; i < lit; i++) {
+    const sx = x + i * (segW + gap);
+    ctx.fillStyle = "#e03a3a";                       ctx.fillRect(sx, y, segW, H);
+    ctx.fillStyle = "rgba(255,150,150,0.55)";        ctx.fillRect(sx, y, segW, topH);        // highlight
+    ctx.fillStyle = "rgba(70,0,12,0.55)";            ctx.fillRect(sx, y + H - botH, segW, botH); // shade
+  }
+  // White damage-flash sweep over the lit fill.
+  if (bossbar.flash > 0.01) {
+    ctx.fillStyle = `rgba(255,255,255,${0.5 * bossbar.flash})`;
+    ctx.fillRect(x, y, lit > 0 ? (x + (lit - 1) * (segW + gap) + segW) - x : 0, H);
+  }
+
+  ctx.restore();
+}
+
 // Slim segmented EXP bar, bottom-center: whole segments pop in (choppy) in the
 // current color, a burst of action lines on level-up, and a small "level N" label
 // above it in the complementary color with a black outline.
@@ -1568,23 +2157,27 @@ function frame(now) {
     } else {
       const input = pollInput();
       const bulletsBefore = bullets.length;
-      updatePlayer(player, input, dt, bullets, cur.tiles);
+      updatePlayer(player, input, dt, bullets, collTiles);
       if (bullets.length > bulletsBefore) playSound(SFX.playerFire, 0.4, 0.06);
       updateSpikes(dt);
+      stepSwingers(dt);
       updateEnemies(dt);
       updateEnemyShots(dt);
       updateBullets(dt);
-      pickups = updatePickups(pickups, dt, cur.tiles, player, collectPickup);
+      pickups = updatePickups(pickups, dt, collTiles, player, collectPickup);
       updateExpParticles(expfx, dt, player.x + C.PW / 2, player.y + C.PH / 2, grantExp);
       updateDamageNumbers(dmgfx, dt);
       if (cur.chest && cur.chest.opened) cur.chest.animT += dt; // play the open anim
+      updateBattle(dt);
       checkExit();
+      if (shakeTime > 0) shakeTime -= dt;
       gameClock += dt; // drives torch/vase animation (frozen while paused)
     }
   }
 
   updateHealthBar(healthbar, dt, player.hp / player.maxHp);
   updateExpBar(dt);
+  updateBossBar(dt);
 
   render();
   drawUI();

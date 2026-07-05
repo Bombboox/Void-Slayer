@@ -139,6 +139,56 @@ export const SPIKE_ACTIVE = 3.0;  // s the spikes stay out once up
 export const SPIKE_FPS    = 14;   // activate / deactivate animation speed
 export const SPIKE_DMG    = 20;   // damage per hit while impaled
 
+// ── Swinger (a pendulum hazard hung from the ceiling on a chain of rings) ─────
+// Driven as a real pendulum (accel = -GRAVITY·sinθ), so it speeds up through the
+// bottom and slows at the extremes like an actual swing.
+export const SWINGER_DMG     = 22;   // damage from the swinging head
+export const SWINGER_GRAVITY = 9.0;  // restoring acceleration (higher = faster swing)
+export const SWINGER_ANGLE   = 0.72; // release amplitude from straight-down (rad)
+export const SWINGER_LINK    = 30;   // length of each chain link (px)
+export const SWINGER_LAG     = 3;    // chain whip: frames each link lags the one above
+
+// ── Battle rooms (flat arena for a mini-boss) ─────────────────────────────────
+export const BATTLE_ROOM_CHANCE = 0.14; // chance a non-origin room is a battle arena
+export const LIGHT_COL_TILES    = 3;    // width of the central holy light column (tiles)
+export const SMOKE_FRAMES       = 4;    // smoke.png is a 4-frame 32x32 strip
+export const SMOKE_FPS          = 8;
+// Reinforcements drop through the ceiling gaps in pairs while the boss fight is on.
+export const BATTLE_REINFORCE_MIN  = 10.0; // seconds between drops (min)
+export const BATTLE_REINFORCE_MAX  = 18.0; // seconds between drops (max)
+export const BATTLE_REINFORCE_PAIR = 2;    // enemies per drop
+
+// ── Kisser (mini-boss) ────────────────────────────────────────────────────────
+export const KISSER_MAX_HP      = 1395;  // beefy mini-boss (1.5x, then 1.5x again)
+export const KISSER_SPEED       = 74;
+export const KISSER_MELEE_RANGE = 120;   // within this: cleaver / punch (closes in first)
+export const KISSER_FLAME_RANGE = 1000;  // beyond melee (up to this): flame
+export const KISSER_ATTACK_CD   = 0.7;   // pause between attacks
+export const KISSER_FLAME_CD    = 7.0;   // extra cooldown on the flame attack alone
+export const KISSER_TOUCH_DMG   = 26;    // body/melee contact damage
+export const KISSER_IDLE_CHANCE = 0.25;  // chance to stand idle between actions
+export const KISSER_EXP_REWARD  = 800;   // huge exp payout for the kill
+// Pre-battle intro: the screen shakes and the holy light fades before the fight.
+export const BATTLE_INTRO_TIME  = 1.2;   // seconds the shake + light-fade runs
+export const BATTLE_SUSPENSE_TIME = 2.0; // extra beat (dark & quiet) after the rumble
+export const BATTLE_SHAKE_MAG   = 16;    // camera shake amplitude (world px)
+export const BATTLE_DROP_VY     = 320;   // downward shove on dropped-in reinforcements
+
+// Flame particles (the kisser's ranged attack): a continuous stream of bouncing
+// fireballs sprayed for the duration of the attack.
+export const FLAME_DMG           = 15;
+export const FLAME_GRAVITY       = 520;
+export const FLAME_LIFETIME      = 3.2;
+export const FLAME_EMIT_INTERVAL = 0.05; // seconds between emissions while firing
+export const FLAME_COUNT_MIN     = 1;    // flames per emission
+export const FLAME_COUNT_MAX     = 3;
+export const FLAME_SPEED_MIN     = 300;
+export const FLAME_SPEED_MAX     = 620;
+export const FLAME_SIZE_MIN      = 10;
+export const FLAME_SIZE_MAX      = 24;
+export const FLAME_BOUNCE_MAX    = 3;     // ground bounces before it fizzles out
+export const FLAME_RESTITUTION   = 0.55;  // bounce energy kept
+
 // ── Plasma (enemy energy projectile) ──────────────────────────────────────────
 export const PLASMA_SPEED    = 300.0;
 export const PLASMA_SIZE     = 12.0;

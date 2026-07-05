@@ -199,6 +199,7 @@ function roomColor(gx, gy) {
 // Returns an array of solid tiles in WORLD space: { x, y, w, h, r, g, b }.
 // ─────────────────────────────────────────────────────────────────────────────
 export function generateRoomTiles(room) {
+  if (room.battle) return generateBattleRoom(room);
   const grid = makeGrid();
 
   // Perimeter walls.
@@ -286,8 +287,55 @@ export function generateRoomTiles(room) {
   room.debris = computeDebris(grid);       // decorative ground clutter
   room.breakables = computeBreakables(grid, room.origin); // vases + torches
   room.spikes = computeSpikes(grid, room.origin);         // spike-trap floor blocks
+  room.swingers = computeSwingers(grid, room.origin);     // ceiling pendulum hazard (rare)
   room.chest = computeChest(room.origin, room.spawnCols); // ~1/3 of rooms
   return gridToTiles(grid, room);
+}
+
+// Is the given grid box entirely empty (air)?
+function clearBox(grid, r0, r1, c0, c1) {
+  c0 = clamp(c0, 1, COLS - 2); c1 = clamp(c1, 1, COLS - 2);
+  for (let r = Math.max(1, r0); r <= Math.min(r1, ROWS - 2); r++)
+    for (let c = c0; c <= c1; c++)
+      if (grid[r][c]) return false;
+  return true;
+}
+
+// Swinger: a pendulum hazard hung from a solid ceiling cell into open air, with a
+// clear box below/around it so it can swing without clipping terrain. The ceiling
+// cell is already a solid tile (its "block" collision); only the head hurts. Rare
+// (~1 in 6 rooms). Chain length (rings) is random 3-8, capped by the room it has
+// to hang in. `x,y` is the anchor (base) cell; pivot is its bottom-center.
+function computeSwingers(grid, origin, count = (Math.random() < 1 / 6 ? 1 : 0)) {
+  const out = [];
+  if (count <= 0) return out;
+  const cands = [];
+  for (let c = 4; c <= COLS - 5; c++)
+    if (grid[0][c] && !grid[1][c]) cands.push(c); // solid ceiling, open just below
+  shuffle(cands);
+  const used = []; // [lo, hi] col ranges already claimed, so swing arcs don't overlap
+  for (const c of cands) {
+    if (out.length >= count) break;
+    let drop = 0; // empty cells straight below the anchor
+    while (1 + drop <= ROWS - 2 && !grid[1 + drop][c]) drop++;
+    const maxRings = Math.min(8, drop - 2);
+    if (maxRings < 3) continue;
+    const rings = 3 + ((Math.random() * (maxRings - 2)) | 0); // 3..maxRings
+    // Clearance must fit the swing: chain reach + the head's half-width (1.5 tiles).
+    const chainLen = (rings + 1) * C.SWINGER_LINK;
+    const halfW = Math.ceil((chainLen * Math.sin(C.SWINGER_ANGLE) + TILE * 1.5) / TILE);
+    if (c - halfW < 1 || c + halfW > COLS - 2) continue;               // would reach a side wall
+    if (!clearBox(grid, 1, rings + 2, c - halfW, c + halfW)) continue; // room to swing
+    if (used.some(([lo, hi]) => c - halfW <= hi && c + halfW >= lo)) continue; // arcs overlap
+    used.push([c - halfW, c + halfW]);
+    out.push({
+      x: origin.x + c * TILE, y: origin.y,               // base (ceiling) cell top-left
+      pivotX: origin.x + c * TILE + TILE / 2,             // chain hangs from its bottom-center
+      pivotY: origin.y + TILE,
+      rings, phase: Math.random() * Math.PI * 2,
+    });
+  }
+  return out;
 }
 
 // Spike-trap blocks: sit on a stand-surface cell (solid, empty above) so the block
@@ -295,13 +343,12 @@ export function generateRoomTiles(room) {
 // open cell above it. The cell is already solid in the grid, so collision is the
 // usual floor tile — only the state/hazard is tracked here. `x,y` is the block's
 // top-left (its top is the surface the player stands on). Persisted on the room.
-function computeSpikes(grid, origin) {
+function computeSpikes(grid, origin, n = (Math.random() * 3) | 0 /* 0..2 per room */) {
   const surfaces = [];
   for (let r = 2; r <= ROWS - 1; r++)
     for (let c = 2; c <= COLS - 3; c++)
       if (grid[r][c] && !grid[r - 1][c]) surfaces.push({ c, r });
   shuffle(surfaces);
-  const n = (Math.random() * 3) | 0; // 0..2 per room
   const out = [];
   for (let i = 0; i < n && i < surfaces.length; i++) {
     const { c, r } = surfaces[i];
@@ -311,6 +358,77 @@ function computeSpikes(grid, origin) {
     });
   }
   return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Battle arena: a deliberately flat, open, symmetric room. Tall archway openings
+// on both sides (so you enter at door height and walk out along the floor), a few
+// symmetric platforms for maneuvering, symmetric torches + banners, and a central
+// holy light column. The exit side is blocked by a smoke column (until cleared).
+// ─────────────────────────────────────────────────────────────────────────────
+function generateBattleRoom(room) {
+  const grid = makeGrid();
+  for (let c = 0; c < COLS; c++) { grid[0][c] = true; grid[ROWS - 1][c] = true; }
+  // Only the LEFT wall is real blocks. The right (boss) side is left open — a column
+  // of smoke walls it off instead (see smokeRects/drawSmoke), so the kisser can walk
+  // in through it. The floor/ceiling corners on the right stay solid (from the rows).
+  for (let r = 0; r < ROWS; r++) grid[r][0] = true;
+
+  // A single 3-tile door on the LEFT (entrance), matching the room it connects to,
+  // with a solid wall (column of blocks) below it. The right side has no blocks at
+  // all — just a smoke column; that's where the boss emerges.
+  const dTop = CR - HALF_DOOR, dBot = CR + HALF_DOOR;
+  for (let r = dTop; r <= dBot; r++) grid[r][0] = false;
+
+  // Two 4-wide gaps in the ceiling (blocks removed, filled with smoke) where
+  // reinforcements drop into the arena from off-screen above.
+  const ceilingGaps = [{ c0: 8, c1: 11 }, { c0: COLS - 12, c1: COLS - 9 }];
+  for (const g of ceilingGaps) for (let c = g.c0; c <= g.c1; c++) grid[0][c] = false;
+
+  const plat = (row, c0, c1) => {
+    for (let c = Math.max(1, c0); c <= Math.min(COLS - 2, c1); c++) grid[row][c] = true;
+  };
+  // Two symmetric maneuvering platforms, off-center (clear of the light column).
+  plat(ROWS - 8, 13, 16); plat(ROWS - 8, COLS - 17, COLS - 14);
+
+  const ox = room.origin.x, oy = room.origin.y;
+  room.floorTop = oy + (ROWS - 1) * TILE;
+  room.lightX = ox + (COLS / 2) * TILE; // room center
+  room.doorTop = dTop; room.doorBot = dBot;
+  // World-space ceiling gaps (with each gap's center x, the drop-in spawn point).
+  room.ceilingGaps = ceilingGaps.map((g) => ({
+    c0: g.c0, c1: g.c1, cx: ox + ((g.c0 + g.c1 + 1) / 2) * TILE,
+  }));
+
+  // Two symmetric banners standing on the floor, flanking the light column. The
+  // sprite is 32x64 (1:2), drawn 1.5 tiles wide so its bottom rests on the ground.
+  const bw = 1.5 * TILE, bh = 3 * TILE, by = oy + (ROWS - 1) * TILE - bh;
+  const bcx = (frac) => ox + frac * COLS * TILE;
+  room.banners = [
+    { x: bcx(0.32) - bw / 2, y: by, w: bw, h: bh, flip: false },
+    { x: bcx(0.68) - bw / 2, y: by, w: bw, h: bh, flip: true },
+  ];
+
+  // Symmetric wall torches (reuse the breakable-torch renderer; warm arena color).
+  room.breakables = [];
+  const torch = (col, row) => room.breakables.push({
+    kind: "torch", x: ox + col * TILE, y: oy + row * TILE, w: TILE, h: TILE,
+    hp: 1, variant: 0, tint: [1.0, 0.68, 0.32], phase: Math.random() * 4,
+  });
+  torch(2, 4); torch(COLS - 3, 4);
+  torch(2, ROWS - 6); torch(COLS - 3, ROWS - 6);
+
+  // Arenas skip the usual clutter/chest, but get their own dose of hazards.
+  room.debris = [];
+  room.spawnCols = [];
+  room.chest = null;
+  room.spikes = computeSpikes(grid, room.origin, 4 + ((Math.random() * 3) | 0));   // 4..6
+  room.swingers = computeSwingers(grid, room.origin, 1 + ((Math.random() * 2) | 0)); // 1..2
+  // Smoke fills the right (boss) side, hiding where the kisser emerges. The left
+  // (entrance) only gets sealed with smoke once the fight starts.
+  room.smoke = { left: false, right: true };
+
+  return gridToTiles(grid, room);
 }
 
 // Clear a wide band beside the ledge (down to the floor) so a fresh staircase —

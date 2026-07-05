@@ -1,0 +1,1936 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "kissy.png",
+    "frameWidth": 192,
+    "frameHeight": 192,
+    "columns": 26,
+    "rows": 5,
+    "frameCount": 130,
+    "format": "keyframes",
+    "rowLabels": [
+      "idle",
+      "walk",
+      "cleaver_attack",
+      "punch_attack",
+      "flame_attack"
+    ],
+    "rowFrameCounts": [
+      12,
+      8,
+      18,
+      17,
+      26
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 81,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 9,
+          "y": 103,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 2,
+      "col": 2,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 81,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 10,
+          "y": 106,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 3,
+      "col": 3,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 81,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 14,
+          "y": 110,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 4,
+      "col": 4,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 92,
+          "y": 84,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 9,
+          "y": 104,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 5,
+      "col": 5,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 96,
+          "y": 88,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 9,
+          "y": 104,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 6,
+      "col": 6,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 92,
+          "y": 83,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 11,
+          "y": 107,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 7,
+      "col": 7,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 84,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 13,
+          "y": 108,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 8,
+      "col": 8,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 94,
+          "y": 88,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 9,
+          "y": 104,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 9,
+      "col": 9,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 82,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 9,
+          "y": 104,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 10,
+      "col": 10,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 84,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 11,
+          "y": 107,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 11,
+      "col": 11,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 95,
+          "y": 87,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 14,
+          "y": 108,
+          "width": 25,
+          "height": 30
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 26,
+      "col": 0,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 13,
+          "y": 111,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 96,
+          "y": 86,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 27,
+      "col": 1,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 15,
+          "y": 115,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 97,
+          "y": 91,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 28,
+      "col": 2,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 45,
+          "y": 118,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 93,
+          "y": 93,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 29,
+      "col": 3,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 58,
+          "y": 118,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 92,
+          "y": 85,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 30,
+      "col": 4,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 58,
+          "y": 118,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 96,
+          "y": 86,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 31,
+      "col": 5,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 46,
+          "y": 122,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 96,
+          "y": 92,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 32,
+      "col": 6,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 17,
+          "y": 116,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 94,
+          "y": 88,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 33,
+      "col": 7,
+      "row": 1,
+      "action": "walk",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 13,
+          "y": 111,
+          "width": 26,
+          "height": 26
+        },
+        {
+          "x": 94,
+          "y": 87,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 52,
+      "col": 0,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 10,
+          "y": 106,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 90,
+          "y": 81,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 53,
+      "col": 1,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 9,
+          "y": 107,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 91,
+          "y": 81,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 54,
+      "col": 2,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 10,
+          "y": 108,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 94,
+          "y": 87,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 55,
+      "col": 3,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 10,
+          "y": 108,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 95,
+          "y": 81,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 56,
+      "col": 4,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 11,
+          "y": 109,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 98,
+          "y": 71,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 57,
+      "col": 5,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 20,
+          "y": 111,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 109,
+          "y": 16,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 58,
+      "col": 6,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 61,
+          "y": 122,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 110,
+          "y": 14,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 59,
+      "col": 7,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 64,
+          "y": 119,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 110,
+          "y": 8,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 60,
+      "col": 8,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 66,
+          "y": 119,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 114,
+          "y": 22,
+          "width": 26,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 61,
+      "col": 9,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 66,
+          "y": 119,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 132,
+          "y": 22,
+          "width": 26,
+          "height": 137
+        },
+        {
+          "x": 115,
+          "y": 18,
+          "width": 22,
+          "height": 69
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 62,
+      "col": 10,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 66,
+          "y": 119,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 134,
+          "y": 147,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 63,
+      "col": 11,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 66,
+          "y": 118,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 133,
+          "y": 140,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 64,
+      "col": 12,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 66,
+          "y": 116,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 134,
+          "y": 141,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 65,
+      "col": 13,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 66,
+          "y": 116,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 135,
+          "y": 141,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 66,
+      "col": 14,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 63,
+          "y": 119,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 135,
+          "y": 141,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 67,
+      "col": 15,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 20,
+          "y": 112,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 135,
+          "y": 141,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 68,
+      "col": 16,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 12,
+          "y": 110,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 135,
+          "y": 137,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 69,
+      "col": 17,
+      "row": 2,
+      "action": "cleaver_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 12,
+          "y": 110,
+          "width": 24,
+          "height": 25
+        },
+        {
+          "x": 125,
+          "y": 121,
+          "width": 26,
+          "height": 27
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 78,
+      "col": 0,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 89,
+          "y": 81,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 10,
+          "y": 105,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 81,
+      "col": 3,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 89,
+          "y": 81,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 8,
+          "y": 105,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 82,
+      "col": 4,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 89,
+          "y": 81,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 5,
+          "y": 102,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 83,
+      "col": 5,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 87,
+          "y": 75,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 5,
+          "y": 102,
+          "width": 24,
+          "height": 21
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 84,
+      "col": 6,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 79,
+          "y": 68,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 4,
+          "y": 97,
+          "width": 24,
+          "height": 24
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 86,
+      "col": 8,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 76,
+          "y": 67,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 4,
+          "y": 97,
+          "width": 24,
+          "height": 24
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 87,
+      "col": 9,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 76,
+          "y": 67,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 11,
+          "y": 97,
+          "width": 24,
+          "height": 24
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 88,
+      "col": 10,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 76,
+          "y": 67,
+          "width": 27,
+          "height": 27
+        },
+        {
+          "x": 113,
+          "y": 129,
+          "width": 69,
+          "height": 20
+        },
+        {
+          "x": 80,
+          "y": 123,
+          "width": 33,
+          "height": 22
+        },
+        {
+          "x": 44,
+          "y": 119,
+          "width": 44,
+          "height": 18
+        },
+        {
+          "x": 29,
+          "y": 106,
+          "width": 36,
+          "height": 19
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 89,
+      "col": 11,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 160,
+          "y": 129,
+          "width": 20,
+          "height": 19
+        },
+        {
+          "x": 88,
+          "y": 72,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 90,
+      "col": 12,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 162,
+          "y": 129,
+          "width": 20,
+          "height": 19
+        },
+        {
+          "x": 91,
+          "y": 74,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 91,
+      "col": 13,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 165,
+          "y": 129,
+          "width": 20,
+          "height": 19
+        },
+        {
+          "x": 91,
+          "y": 74,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 92,
+      "col": 14,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 163,
+          "y": 129,
+          "width": 20,
+          "height": 19
+        },
+        {
+          "x": 91,
+          "y": 75,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 93,
+      "col": 15,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 154,
+          "y": 129,
+          "width": 20,
+          "height": 19
+        },
+        {
+          "x": 91,
+          "y": 76,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 94,
+      "col": 16,
+      "row": 3,
+      "action": "punch_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 87,
+          "y": 117,
+          "width": 20,
+          "height": 19
+        },
+        {
+          "x": 91,
+          "y": 76,
+          "width": 24,
+          "height": 25
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 104,
+      "col": 0,
+      "row": 4,
+      "action": "flame_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 82,
+          "width": 24,
+          "height": 24
+        },
+        {
+          "x": 10,
+          "y": 106,
+          "width": 23,
+          "height": 24
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 107,
+      "col": 3,
+      "row": 4,
+      "action": "flame_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 82,
+          "width": 24,
+          "height": 24
+        }
+      ],
+      "points": []
+    },
+    {
+      "index": 119,
+      "col": 15,
+      "row": 4,
+      "action": "flame_attack",
+      "hitboxes": [
+        {
+          "x": 45,
+          "y": 80,
+          "width": 26,
+          "height": 86
+        },
+        {
+          "x": 58,
+          "y": 48,
+          "width": 29,
+          "height": 32
+        }
+      ],
+      "hurtboxes": [
+        {
+          "x": 91,
+          "y": 82,
+          "width": 24,
+          "height": 24
+        }
+      ],
+      "points": [
+        {
+          "name": "flame_spawn",
+          "x": 74,
+          "y": 76
+        }
+      ]
+    }
+  ]
+}

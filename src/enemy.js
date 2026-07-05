@@ -53,6 +53,7 @@ const MAX_HP = {
   eyefly: C.EYEFLY_MAX_HP,
   deepblue: C.DEEPBLUE_MAX_HP,
   buh: C.BUH_MAX_HP,
+  kisser: C.KISSER_MAX_HP,
 };
 
 export function createEnemy(type, x, y, sprite, extra) {
@@ -119,7 +120,7 @@ export function drawEnemy(renderer, e) {
 
 // ── Update dispatch ─────────────────────────────────────────────────────────
 
-const UPDATERS = { lilguy: updateLilguy, eyefly: updateEyefly, deepblue: updateDeepblue, buh: updateBuh };
+const UPDATERS = { lilguy: updateLilguy, eyefly: updateEyefly, deepblue: updateDeepblue, buh: updateBuh, kisser: updateKisser };
 
 // `shots` is the shared enemy-projectile array (ranged enemies push into it).
 export function updateEnemy(e, dt, tiles, player, shots) {
@@ -602,4 +603,137 @@ export function drawBuh(renderer, e) {
   const flash = e.hitFlash > 0 ? e.hitFlash / C.ENEMY_FLASH_DUR : 0;
   const tint = flash > 0 ? [1, 1, 1, flash * 0.9] : null;
   renderer.drawSpriteRot(s.tex, cx, cy, s.fw * scale, s.fh * scale, f.u0, f.v0, f.u1, f.v1, a, flip, tint);
+}
+
+// ── Kisser (mini-boss) ───────────────────────────────────────────────────────
+// Cycles between standing idle, walking toward the player, and one of three
+// attacks. Cleaver/punch are short-to-mid range; flame is a longer-range volley.
+// Its melee hurtboxes come straight from the sprite frames (handled generically);
+// only the flame attack needs custom projectiles.
+const KISSER_ATTACKS = ["cleaver_attack", "punch_attack", "flame_attack"];
+
+function spawnFlames(e, player, shots) {
+  if (!shots) return;
+  const bb = e.sprite.bodyBox;
+  // The flame_spawn point only exists on the muzzle frame; the stream keeps firing on
+  // later frames that lack it, so we spawn from the muzzle captured when firing began
+  // (the kisser stands still during the attack, so it stays put).
+  const muzzle = e.flameMuzzle ?? framePointWorld(e, "flame_spawn") ?? { x: e.x + bb.w / 2, y: e.y + bb.h / 2 };
+  const tx = player.x + C.PW / 2, ty = player.y + C.PH / 2;
+  const base = Math.atan2(ty - muzzle.y, tx - muzzle.x);
+  const n = C.FLAME_COUNT_MIN + ((Math.random() * (C.FLAME_COUNT_MAX - C.FLAME_COUNT_MIN + 1)) | 0);
+  for (let i = 0; i < n; i++) {
+    const speed = rand(C.FLAME_SPEED_MIN, C.FLAME_SPEED_MAX);
+    const ang = base + rand(-0.32, 0.32);
+    shots.push({
+      type: "flame",
+      x: muzzle.x, y: muzzle.y,
+      vx: Math.cos(ang) * speed,
+      vy: Math.sin(ang) * speed - rand(0, 150), // varied upward arc
+      size: rand(C.FLAME_SIZE_MIN, C.FLAME_SIZE_MAX),
+      life: C.FLAME_LIFETIME, phase: Math.random() * 6, bounces: 0,
+      powerMult: e.powerMult,
+    });
+  }
+}
+
+// Choose the next behavior: attack if off cooldown and in range (flame at range,
+// cleaver/punch up close). Otherwise the kisser is aggressive — it walks toward the
+// player to close the distance (it only idles briefly right after an attack, handled
+// where the attack finishes).
+function pickKisserMode(e, dist) {
+  e.fired = false;
+  if (e.attackCooldown <= 0) {
+    if (dist <= C.KISSER_MELEE_RANGE) { startKisserAttack(e, Math.random() < 0.5 ? "cleaver_attack" : "punch_attack"); return; }
+    // Flame has its own long cooldown so it can't be spammed; when it's not ready the
+    // kisser closes in for melee instead.
+    if (dist <= C.KISSER_FLAME_RANGE && e.flameCooldown <= 0) { startKisserAttack(e, "flame_attack"); return; }
+  }
+  e.mode = "walk"; e.modeTimer = rand(0.4, 0.9); setAction(e, "walk"); // re-evaluate often
+}
+function startKisserAttack(e, mode) {
+  e.mode = mode; e.action = mode; e.animTime = 0; e.frame = 0; e.vx = 0;
+  e.firing = false; e.flameTimer = 0; e.flameMuzzle = null; // flame stream state
+  if (mode === "flame_attack") e.flameCooldown = C.KISSER_FLAME_CD;
+}
+
+function updateKisser(e, dt, tiles, player, shots) {
+  const s = e.sprite, bb = s.bodyBox;
+
+  // Entering from off-screen: walk straight in (no gravity/terrain) until in position.
+  if (e.mode === "enter") {
+    setAction(e, "walk");
+    advanceAnim(e, dt, C.ENEMY_ANIM_FPS);
+    const dir = e.x > e.enterTargetX ? -1 : 1;
+    e.facing = dir;
+    e.x += dir * C.KISSER_SPEED * dt;
+    e.y = e.enterY; e.vx = 0; e.vy = 0;
+    if ((dir < 0 && e.x <= e.enterTargetX) || (dir > 0 && e.x >= e.enterTargetX)) {
+      e.mode = "idle"; e.modeTimer = 0.3; setAction(e, "idle");
+    }
+    return; // updateEnemy recomputes boxes afterward
+  }
+
+  e.attackCooldown -= dt;
+  if (e.flameCooldown > 0) e.flameCooldown -= dt;
+  const { dx, dist } = playerDelta(e, player);
+  const attacking = KISSER_ATTACKS.includes(e.mode);
+
+  if (attacking) {
+    e.vx = 0;
+    e.animTime += dt;
+    const clip = s.clips[e.mode];
+    const f = Math.floor(e.animTime * C.ENEMY_ANIM_FPS);
+    if (f < 3 && dx !== 0) e.facing = dx >= 0 ? 1 : -1; // aim during the wind-up
+    if (f >= clip.count) {                              // attack finished
+      e.attackCooldown = C.KISSER_ATTACK_CD;
+      // Only pause here — a short breather directly after an attack — then it's back
+      // to chasing the player (pickKisserMode never idles on its own).
+      e.mode = "idle"; e.modeTimer = rand(1, 2); setAction(e, "idle");
+    } else {
+      e.frame = f;
+      // Flame attack: once the flame_spawn frame is reached, spray a continuous
+      // stream of fireballs for the rest of the animation (a flamethrower). Capture
+      // the muzzle on the frame that carries the point; later frames reuse it.
+      if (e.mode === "flame_attack") {
+        const mp = framePointWorld(e, "flame_spawn");
+        if (mp) { e.firing = true; e.flameMuzzle = mp; }
+        if (e.firing) {
+          e.flameTimer -= dt;
+          if (e.flameTimer <= 0) { spawnFlames(e, player, shots); e.flameTimer = C.FLAME_EMIT_INTERVAL; }
+        }
+      }
+    }
+  } else if (e.mode === "walk") {
+    setAction(e, "walk");
+    advanceAnim(e, dt, C.ENEMY_ANIM_FPS);
+    e.facing = dx >= 0 ? 1 : -1;
+    e.modeTimer -= dt;
+    e.vx = e.facing * C.KISSER_SPEED;
+    e.x += e.vx * dt;
+    resolveAxisX(e, bb.w, bb.h, tiles);
+    // Break off to attack when in range and ready, or when the walk dwell ends.
+    if ((e.attackCooldown <= 0 && dist <= C.KISSER_FLAME_RANGE) || e.modeTimer <= 0) pickKisserMode(e, dist);
+  } else { // idle
+    setAction(e, "idle");
+    advanceAnim(e, dt, C.ENEMY_ANIM_FPS);
+    e.vx = 0;
+    if (dx !== 0) e.facing = dx >= 0 ? 1 : -1;
+    e.modeTimer -= dt;
+    if (e.modeTimer <= 0) pickKisserMode(e, dist);
+  }
+
+  // Gravity (kisser is a grounded walker).
+  e.vy += C.ENEMY_GRAVITY * dt;
+  if (e.vy > C.ENEMY_MAX_FALL) e.vy = C.ENEMY_MAX_FALL;
+  e.y += e.vy * dt;
+  resolveAxisY(e, bb.w, bb.h, tiles);
+  e.onGround = collidesWithTiles(tiles, e.x, e.y + 2, bb.w, bb.h);
+}
+
+export function createKisser(x, y, sprite) {
+  return createEnemy("kisser", x, y, sprite, {
+    action: "idle", mode: "idle", modeTimer: rand(0.4, 0.9),
+    fired: false, flameCooldown: 0, touchDmg: C.KISSER_TOUCH_DMG,
+  });
 }

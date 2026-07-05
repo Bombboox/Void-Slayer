@@ -53,8 +53,12 @@ uniform sampler2D uTex;
 out vec4 fragColor;
 void main() {
   vec4 c = texture(uTex, vUV);
-  c.rgb = clamp(c.rgb + vTint.rgb * vTint.a, 0.0, 1.0); // additive flash
-  fragColor = vec4(c.rgb * c.a, c.a); // premultiply to match the blend func
+  // A negative tint alpha encodes a plain opacity multiplier (used to cross-fade
+  // sprites); a positive one is the usual additive flash. Backgrounds never flash,
+  // so the two never collide.
+  float op = vTint.a < 0.0 ? -vTint.a : 1.0;
+  c.rgb = clamp(c.rgb + vTint.rgb * max(vTint.a, 0.0), 0.0, 1.0); // additive flash
+  fragColor = vec4(c.rgb * c.a, c.a) * op; // premultiply to match the blend func
 }`;
 
 import { PostFX } from "./postfx.js";
@@ -229,15 +233,18 @@ export class Renderer {
   // Quads are batched per-texture; switching texture or drawing solids first
   // flushes the pending batch, so draw order is preserved. flipX mirrors it.
   // tint = [r,g,b,a] additive flash within the sprite (null/omitted = none).
-  drawSprite(tex, dx, dy, dw, dh, u0, v0, u1, v1, flipX = false, tint = null) {
+  // opacity (0..1) fades the whole sprite; encoded as a negative tint alpha, so it
+  // can't be combined with a flash tint (fine — nothing needs both).
+  drawSprite(tex, dx, dy, dw, dh, u0, v0, u1, v1, flipX = false, tint = null, opacity = 1) {
     if (this.count > 0) this.flush();                 // order vs. solid quads
     if (this.texBatchTex !== tex) this.flushTex();     // order vs. other textures
     if (this.texCount + VERTS_PER_QUAD > MAX_QUADS * VERTS_PER_QUAD) this.flushTex();
     this.texBatchTex = tex;
 
     if (flipX) { const t = u0; u0 = u1; u1 = t; }
-    const tr = tint ? tint[0] : 0, tg = tint ? tint[1] : 0;
-    const tb = tint ? tint[2] : 0, ta = tint ? tint[3] : 0;
+    let tr = tint ? tint[0] : 0, tg = tint ? tint[1] : 0, tb = tint ? tint[2] : 0;
+    let ta = tint ? tint[3] : 0;
+    if (opacity < 1) { tr = 0; tg = 0; tb = 0; ta = -Math.max(opacity, 0.002); } // fade
     const d = this.texData;
     let o = this.texCount * 8;
     const x1 = dx + dw, y1 = dy + dh;
@@ -247,6 +254,27 @@ export class Renderer {
     };
     push(dx, dy, u0, v0);  push(x1, dy, u1, v0);  push(dx, y1, u0, v1);
     push(x1, dy, u1, v0);  push(x1, y1, u1, v1);  push(dx, y1, u0, v1);
+    this.texCount += VERTS_PER_QUAD;
+  }
+
+  // Like drawSprite but with a per-corner opacity (top-left, top-right, bottom-
+  // left, bottom-right), interpolated across the quad by the GPU — for smooth
+  // cross-fades (e.g. blending one background into another across a biome seam).
+  drawSpriteFade(tex, dx, dy, dw, dh, u0, v0, u1, v1, oTL, oTR, oBL, oBR) {
+    if (this.count > 0) this.flush();
+    if (this.texBatchTex !== tex) this.flushTex();
+    if (this.texCount + VERTS_PER_QUAD > MAX_QUADS * VERTS_PER_QUAD) this.flushTex();
+    this.texBatchTex = tex;
+    const d = this.texData;
+    let o = this.texCount * 8;
+    const x1 = dx + dw, y1 = dy + dh;
+    const enc = (op) => -Math.min(Math.max(op, 0.002), 1); // negative alpha => opacity
+    const push = (px, py, u, v, op) => {
+      d[o++] = px; d[o++] = py; d[o++] = u; d[o++] = v;
+      d[o++] = 0; d[o++] = 0; d[o++] = 0; d[o++] = enc(op);
+    };
+    push(dx, dy, u0, v0, oTL);  push(x1, dy, u1, v0, oTR);  push(dx, y1, u0, v1, oBL);
+    push(x1, dy, u1, v0, oTR);  push(x1, y1, u1, v1, oBR);  push(dx, y1, u0, v1, oBL);
     this.texCount += VERTS_PER_QUAD;
   }
 
