@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "shopkeeper.png",
+    "frameWidth": 192,
+    "frameHeight": 192,
+    "columns": 9,
+    "rows": 1,
+    "frameCount": 9,
+    "format": "keyframes",
+    "rowLabels": [
+      "walk/idle"
+    ],
+    "rowFrameCounts": [
+      9
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "walk/idle",
+      "hitboxes": [
+        {
+          "x": 87,
+          "y": 84,
+          "width": 18,
+          "height": 57
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 1,
+      "col": 1,
+      "row": 0,
+      "action": "walk/idle",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

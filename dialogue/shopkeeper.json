@@ -1,0 +1,53 @@
+{
+  "name": "Shopkeeper",
+  "start": "intro",
+  "nodes": {
+    "maw_intro_cutscene": {
+      "lines": [
+        { "text": "...", "expression": "default" },
+        { "text": "How bizarre, you're not like the rest of the beings here are you?", "expression": "silly" }
+      ],
+      "options": []
+    },
+    "intro": {
+      "lines": [
+        { "text": "Greetings, simian. Would you like to purchase something?", "expression": "default" }
+      ],
+      "options": [
+        { "label": "Yes", "action": "shop" },
+        { "label": "What makes me not like the rest?", "next": "not_like_rest" },
+        { "label": "What are you?", "next": "what_are_you" },
+        { "label": "Exit", "action": "exit" }
+      ]
+    },
+    "not_like_rest": {
+      "lines": [
+        { "text": "I can't quite say, it's as if there is something in you that resembles us more than anything in your world.", "expression": "default" }
+      ],
+      "options": [
+        { "label": "What exactly are you?", "next": "what_are_you" },
+        { "label": "Exit", "action": "exit" }
+      ]
+    },
+    "what_are_you": {
+      "lines": [
+        { "text": "I am what you may call an invader, from beyond your world.", "expression": "serious/threatening" },
+        { "text": "Don't be afraid, unlike my peers I do not desire any harm to befall you.", "expression": "default" }
+      ],
+      "options": [
+        { "label": "From another planet?", "next": "another_planet" },
+        { "label": "Exit", "action": "exit" }
+      ]
+    },
+    "another_planet": {
+      "lines": [
+        { "text": "Ah, no, perhaps you have misunderstood, this concept of \"planets\" is foreign to my kind.", "expression": "silly" },
+        { "text": "Enough talk now, simian, don't confuse me for a friend. I am simply here to conduct business.", "expression": "upset" }
+      ],
+      "options": [
+        { "label": "What are you selling?", "action": "shop" },
+        { "label": "Exit", "action": "exit" }
+      ]
+    }
+  }
+}

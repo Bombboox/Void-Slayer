@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Void Slayer — Dialogue Editor</title>
+<style>
+  :root {
+    --bg: #0b0f18; --panel: #101524; --panel2: #161d30; --line: #2a3550;
+    --text: #dfe8f5; --dim: #8f9db5; --accent: #82dcf5; --gold: #ffd23c;
+    --green: #4ade80; --red: #f87171; --purple: #c084fc;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    display: flex; background: var(--bg); color: var(--text);
+    font: 13px "Courier New", ui-monospace, monospace; overflow: hidden;
+  }
+
+  /* ── Left panel ─────────────────────────────────────────────────────────── */
+  #panel {
+    width: 380px; min-width: 380px; height: 100%; overflow-y: auto;
+    background: var(--panel); border-right: 1px solid var(--line); padding: 14px;
+  }
+  h1 { font-size: 15px; color: var(--gold); margin-bottom: 10px; }
+  h2 {
+    font-size: 11px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase;
+    margin: 18px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px;
+  }
+  label { display: block; color: var(--dim); font-size: 11px; margin: 8px 0 3px; }
+  input[type=text], select, textarea {
+    width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px;
+    font: inherit; outline: none;
+  }
+  input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: none; overflow: hidden; min-height: 34px; line-height: 1.4; }
+  button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 5px 10px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.danger:hover { border-color: var(--red); color: var(--red); }
+  button.small { padding: 2px 7px; font-size: 12px; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row > * { flex-shrink: 0; }
+  .row .grow { flex: 1 1 auto; min-width: 0; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; margin: 0 5px 5px 0;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 20px;
+    padding: 2px 9px; font-size: 12px;
+  }
+  .chip.default { border-color: var(--gold); color: var(--gold); }
+  .chip b { cursor: pointer; color: var(--dim); }
+  .chip b:hover { color: var(--red); }
+
+  .card {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 8px; margin-bottom: 8px;
+  }
+  .card .row + .row { margin-top: 6px; }
+  .muted { color: var(--dim); font-size: 11px; }
+  .issues { color: var(--red); font-size: 11px; margin-top: 14px; white-space: pre-wrap; }
+  .hint { color: var(--dim); font-size: 11px; margin-top: 14px; line-height: 1.6; }
+
+  /* ── Graph ──────────────────────────────────────────────────────────────── */
+  #graph { position: relative; flex: 1; height: 100%; overflow: hidden;
+    background:
+      radial-gradient(circle, #1c2438 1px, transparent 1px) 0 0 / 26px 26px,
+      var(--bg);
+    cursor: grab;
+  }
+  #graph.panning { cursor: grabbing; }
+  #world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+  #edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
+  #edges path { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0.75; cursor: pointer; }
+  #edges path:hover { stroke: var(--red); opacity: 1; }
+  #edges path.temp { stroke: var(--gold); stroke-dasharray: 6 5; pointer-events: none; }
+
+  .node {
+    position: absolute; width: 230px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; user-select: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+  }
+  .node.sel { border-color: var(--accent); }
+  .node header {
+    padding: 6px 9px; border-bottom: 1px solid var(--line); cursor: move;
+    display: flex; align-items: center; gap: 6px; border-radius: 8px 8px 0 0;
+    background: var(--panel2); font-weight: bold;
+  }
+  .node header .id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+  .badge.start { background: var(--green); color: #05270f; }
+  .badge.cut { background: var(--purple); color: #29063f; }
+  .nlines { padding: 6px 9px; }
+  .nline { color: var(--dim); font-size: 11px; margin: 2px 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .nline em { color: var(--accent); font-style: normal; }
+  .nopts { padding: 0 0 7px; }
+  .opt {
+    position: relative; margin: 4px 9px 0; padding: 3px 20px 3px 8px; font-size: 11px;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .opt .act { color: var(--gold); }
+  .opt .tgt { color: var(--accent); }
+  .port {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 11px; height: 11px; border-radius: 50%; cursor: crosshair;
+    background: var(--accent); border: 2px solid var(--bg);
+  }
+  .port:hover { background: var(--gold); }
+
+  /* ── Toolbar ────────────────────────────────────────────────────────────── */
+  #toolbar {
+    position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 10;
+  }
+  #toolbar button { background: rgba(16,21,36,0.92); }
+</style>
+</head>
+<body>
+  <div id="panel"></div>
+  <div id="graph">
+    <div id="toolbar">
+      <button id="bNew" class="danger" title="Start over">New</button>
+      <button id="bImport" title="Load a dialogue .json">Import</button>
+      <button id="bExport" title="Download the dialogue .json">Export</button>
+      <button id="bCopy" title="Copy JSON to clipboard">Copy</button>
+      <button id="bLayout" title="Auto-arrange nodes by depth from the start node">Auto-layout</button>
+      <button id="bAddNode" title="Add a node (or double-click the canvas)">+ Node</button>
+    </div>
+    <div id="world">
+      <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="nodes"></div>
+    </div>
+  </div>
+  <input type="file" id="file" accept=".json,application/json" hidden>
+
+<script>
+"use strict";
+// ─────────────────────────────────────────────────────────────────────────────
+// Dialogue editor for Void Slayer. Produces/consumes the game's dialogue JSON:
+//   { name, start, nodes: { id: { lines:[{text,expression}], options:[...] } } }
+// Options are either { label, next: "nodeId" } or { label, action: "shop"|"exit" }.
+// A node with NO options is a cutscene (the game just plays its lines).
+// An extra "editor" key (node positions, expression list, default expression) is
+// written on export so re-importing restores the layout — the game ignores it.
+// ─────────────────────────────────────────────────────────────────────────────
+const $ = (s) => document.querySelector(s);
+const LS_KEY = "vs_dialogue_editor";
+
+const KNOWN_ACTIONS = ["shop", "exit"];
+
+function defaultState() {
+  return {
+    name: "Shopkeeper",
+    start: "intro",
+    expressions: ["default", "upset", "silly", "serious/threatening"],
+    defaultExpression: "default",
+    nodes: {
+      intro: { x: 90, y: 90, lines: [{ text: "", expression: "default" }], options: [] },
+    },
+  };
+}
+
+let S = defaultState();
+let sel = null;            // selected node id
+let pan = { x: 40, y: 20 }, zoom = 1;
+let dragNode = null;       // { id, dx, dy }
+let dragEdge = null;       // { id, oi, x, y } while pulling a connection
+let panning = null;        // { sx, sy, px, py }
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ S, pan, zoom, sel })); } catch {}
+}
+function restore() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY));
+    if (d && d.S && d.S.nodes) { S = d.S; pan = d.pan || pan; zoom = d.zoom || 1; sel = d.sel; }
+  } catch {}
+  if (sel && !S.nodes[sel]) sel = null;
+}
+
+// ── Import / export ───────────────────────────────────────────────────────────
+function toGameJson() {
+  const nodes = {};
+  for (const [id, n] of Object.entries(S.nodes)) {
+    const lines = n.lines.map((l) => ({
+      text: l.text,
+      expression: l.expression || S.defaultExpression,
+    }));
+    const options = n.options.map((o) => {
+      const out = { label: o.label };
+      if (o.next != null) out.next = o.next; else out.action = o.action || "exit";
+      return out;
+    });
+    nodes[id] = { lines, options };
+  }
+  return {
+    name: S.name, start: S.start, nodes,
+    editor: {
+      defaultExpression: S.defaultExpression,
+      expressions: S.expressions,
+      positions: Object.fromEntries(Object.entries(S.nodes).map(([id, n]) => [id, [Math.round(n.x), Math.round(n.y)]])),
+    },
+  };
+}
+
+function fromGameJson(d) {
+  if (!d || typeof d.nodes !== "object") throw new Error("no nodes object");
+  const st = {
+    name: d.name || "???",
+    start: d.start && d.nodes[d.start] ? d.start : Object.keys(d.nodes)[0],
+    expressions: [], defaultExpression: "default", nodes: {},
+  };
+  const pos = (d.editor && d.editor.positions) || {};
+  const used = new Set(["default"]);
+  for (const [id, n] of Object.entries(d.nodes)) {
+    const lines = (n.lines || []).map((l) => {
+      if (l.expression) used.add(l.expression);
+      return { text: l.text || "", expression: l.expression || "default" };
+    });
+    const options = (n.options || []).map((o) =>
+      o.next != null ? { label: o.label || "", next: o.next } : { label: o.label || "", action: o.action || "exit" });
+    st.nodes[id] = { lines, options, x: pos[id] ? pos[id][0] : 0, y: pos[id] ? pos[id][1] : 0 };
+  }
+  st.expressions = (d.editor && Array.isArray(d.editor.expressions) && d.editor.expressions.length)
+    ? d.editor.expressions.slice() : [...used];
+  st.defaultExpression = (d.editor && d.editor.defaultExpression) || "default";
+  if (!st.expressions.includes(st.defaultExpression)) st.expressions.push(st.defaultExpression);
+  S = st;
+  sel = S.start;
+  if (!(d.editor && d.editor.positions)) autoLayout();
+  pan = { x: 40, y: 20 }; zoom = 1;
+}
+
+function download() {
+  const blob = new Blob([JSON.stringify(toGameJson(), null, 2) + "\n"], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (S.name || "dialogue").toLowerCase().replace(/[^a-z0-9_-]+/g, "_") + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function copyJson() {
+  const text = JSON.stringify(toGameJson(), null, 2);
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement("textarea");
+    t.value = text; document.body.appendChild(t); t.select();
+    document.execCommand("copy"); t.remove();
+  }
+  flashButton($("#bCopy"), "Copied!");
+}
+function flashButton(btn, msg) {
+  const old = btn.textContent; btn.textContent = msg;
+  setTimeout(() => { btn.textContent = old; }, 900);
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+// Columns by BFS depth from the start node; unreachable nodes go in a last column.
+function autoLayout() {
+  const depth = new Map();
+  const q = S.nodes[S.start] ? [[S.start, 0]] : [];
+  while (q.length) {
+    const [id, d] = q.shift();
+    if (depth.has(id)) continue;
+    depth.set(id, d);
+    for (const o of S.nodes[id].options) if (o.next && S.nodes[o.next]) q.push([o.next, d + 1]);
+  }
+  let maxD = -1;
+  for (const d of depth.values()) maxD = Math.max(maxD, d);
+  for (const id of Object.keys(S.nodes)) if (!depth.has(id)) depth.set(id, maxD + 1);
+  const rows = new Map(); // depth -> count so far
+  for (const [id, d] of depth) {
+    const r = rows.get(d) || 0; rows.set(d, r + 1);
+    S.nodes[id].x = 60 + d * 300;
+    S.nodes[id].y = 60 + r * 190;
+  }
+}
+
+// ── Validation ────────────────────────────────────────────────────────────────
+function findIssues() {
+  const issues = [];
+  if (!S.nodes[S.start]) issues.push(`start node "${S.start}" does not exist`);
+  const reach = new Set();
+  const q = S.nodes[S.start] ? [S.start] : [];
+  while (q.length) {
+    const id = q.shift();
+    if (reach.has(id)) continue;
+    reach.add(id);
+    for (const o of S.nodes[id].options) if (o.next && S.nodes[o.next]) q.push(o.next);
+  }
+  for (const [id, n] of Object.entries(S.nodes)) {
+    if (!n.lines.length) issues.push(`"${id}" has no lines`);
+    n.lines.forEach((l, i) => { if (!l.text.trim()) issues.push(`"${id}" line ${i + 1} is empty`); });
+    n.options.forEach((o, i) => {
+      if (!o.label.trim()) issues.push(`"${id}" option ${i + 1} has no label`);
+      if (o.next != null && !S.nodes[o.next]) issues.push(`"${id}" option "${o.label}" points to missing node "${o.next}"`);
+    });
+    // Cutscene nodes (no options) are entered from code, not from other nodes,
+    // so only flag option-bearing nodes nothing links to.
+    if (!reach.has(id) && n.options.length > 0) issues.push(`"${id}" is unreachable from the start node`);
+  }
+  return issues;
+}
+
+// ── Mutation helpers ──────────────────────────────────────────────────────────
+function freshId() {
+  let i = 1;
+  while (S.nodes["node_" + i]) i++;
+  return "node_" + i;
+}
+function addNode(x, y) {
+  const id = freshId();
+  S.nodes[id] = { x, y, lines: [{ text: "", expression: S.defaultExpression }], options: [] };
+  sel = id;
+  renderAll();
+}
+function deleteNode(id) {
+  delete S.nodes[id];
+  for (const n of Object.values(S.nodes))
+    for (const o of n.options) if (o.next === id) { delete o.next; o.action = "exit"; }
+  if (S.start === id) S.start = Object.keys(S.nodes)[0] || "";
+  if (sel === id) sel = null;
+  renderAll();
+}
+function renameNode(id, next) {
+  next = next.trim();
+  if (!next || next === id) return renderAll();
+  if (S.nodes[next]) { alert(`A node called "${next}" already exists.`); return renderAll(); }
+  const rebuilt = {};
+  for (const [k, v] of Object.entries(S.nodes)) rebuilt[k === id ? next : k] = v;
+  S.nodes = rebuilt;
+  for (const n of Object.values(S.nodes))
+    for (const o of n.options) if (o.next === id) o.next = next;
+  if (S.start === id) S.start = next;
+  if (sel === id) sel = next;
+  renderAll();
+}
+
+// ── Coordinate helpers ────────────────────────────────────────────────────────
+const world = $("#world"), graph = $("#graph"), edgesSvg = $("#edges"), nodesDiv = $("#nodes");
+function applyTransform() {
+  world.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+}
+// Client (mouse) coords -> world coords. #world is a 0x0 div at the world origin,
+// so its bounding rect IS the transformed origin point.
+function toWorld(cx, cy) {
+  const r = world.getBoundingClientRect();
+  return { x: (cx - r.left) / zoom, y: (cy - r.top) / zoom };
+}
+function rectCenterWorld(el) {
+  const r = el.getBoundingClientRect();
+  return toWorld(r.left + r.width / 2, r.top + r.height / 2);
+}
+
+// ── Graph rendering ───────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function renderGraph() {
+  let html = "";
+  for (const [id, n] of Object.entries(S.nodes)) {
+    const badges =
+      (id === S.start ? '<span class="badge start">START</span>' : "") +
+      (n.options.length === 0 ? '<span class="badge cut">CUTSCENE</span>' : "");
+    const lines = n.lines.map((l) =>
+      `<div class="nline"><em>[${esc(shortExpr(l.expression))}]</em> ${esc(l.text || "…")}</div>`).join("");
+    const opts = n.options.map((o, i) => {
+      const dest = o.next != null
+        ? `<span class="tgt">→ ${esc(o.next)}</span>`
+        : `<span class="act">⚡ ${esc(o.action || "exit")}</span>`;
+      return `<div class="opt" title="drag the dot onto a node to connect">${esc(o.label || "…")} ${dest}` +
+             `<span class="port" data-port="${esc(id)}:${i}"></span></div>`;
+    }).join("");
+    html += `<div class="node${id === sel ? " sel" : ""}" data-node="${esc(id)}" style="left:${n.x}px;top:${n.y}px">` +
+            `<header><span class="id">${esc(id)}</span>${badges}</header>` +
+            `<div class="nlines">${lines}</div>` +
+            (opts ? `<div class="nopts">${opts}</div>` : "") + `</div>`;
+  }
+  nodesDiv.innerHTML = html;
+  applyTransform();
+  requestAnimationFrame(drawEdges);
+}
+function shortExpr(e) {
+  return (e || "?").split("/")[0].slice(0, 6);
+}
+function drawEdges() {
+  let paths = "";
+  for (const [id, n] of Object.entries(S.nodes)) {
+    n.options.forEach((o, i) => {
+      if (o.next == null || !S.nodes[o.next]) return;
+      const portEl = nodesDiv.querySelector(`[data-port="${CSS.escape(id + ":" + i)}"]`);
+      const tgtEl = nodesDiv.querySelector(`[data-node="${CSS.escape(o.next)}"]`);
+      if (!portEl || !tgtEl) return;
+      const a = rectCenterWorld(portEl);
+      const tr = tgtEl.getBoundingClientRect();
+      const b = toWorld(tr.left, tr.top + tr.height / 2);
+      paths += `<path data-edge="${esc(id)}:${i}" d="${bez(a, b)}"><title>${esc(id)} → ${esc(o.next)} (click to disconnect)</title></path>`;
+    });
+  }
+  if (dragEdge) {
+    const portEl = nodesDiv.querySelector(`[data-port="${CSS.escape(dragEdge.id + ":" + dragEdge.oi)}"]`);
+    if (portEl) paths += `<path class="temp" d="${bez(rectCenterWorld(portEl), dragEdge)}"></path>`;
+  }
+  edgesSvg.innerHTML = paths;
+}
+function bez(a, b) {
+  const dx = Math.max(50, Math.abs(b.x - a.x) / 2);
+  return `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+}
+
+// ── Panel rendering ───────────────────────────────────────────────────────────
+const panel = $("#panel");
+function exprOptions(current) {
+  return S.expressions.map((e) =>
+    `<option value="${esc(e)}"${e === current ? " selected" : ""}>${esc(e)}</option>`).join("");
+}
+function nodeOptions(current) {
+  return Object.keys(S.nodes).map((id) =>
+    `<option value="${esc(id)}"${id === current ? " selected" : ""}>${esc(id)}</option>`).join("");
+}
+
+function renderPanel() {
+  const n = sel ? S.nodes[sel] : null;
+  let html = `<h1>Dialogue Editor</h1>
+    <h2>Character</h2>
+    <label>Name</label><input type="text" id="cName" value="${esc(S.name)}">
+    <label>Start node</label><select id="cStart">${nodeOptions(S.start)}</select>
+    <h2>Emotions</h2>
+    <div id="chips">` +
+    S.expressions.map((e) =>
+      `<span class="chip${e === S.defaultExpression ? " default" : ""}" data-expr="${esc(e)}" title="click to make default">` +
+      `${esc(e)}<b data-del="${esc(e)}" title="remove">✕</b></span>`).join("") +
+    `</div>
+    <div class="row"><input type="text" class="grow" id="newExpr" placeholder="new emotion…">
+    <button class="small" id="addExpr">add</button></div>
+    <div class="muted" style="margin-top:5px">the <span style="color:var(--gold)">gold</span> chip is the default — new lines get it automatically</div>`;
+
+  if (n) {
+    html += `<h2>Node</h2>
+      <div class="row"><input type="text" class="grow" id="nId" value="${esc(sel)}">
+        <button class="small" id="nStart" title="make this the start node">start</button>
+        <button class="small danger" id="nDel" title="delete node">delete</button></div>
+      <label>Messages (played in order)</label><div id="lines">`;
+    n.lines.forEach((l, i) => {
+      html += `<div class="card" data-li="${i}">
+        <textarea data-ltext="${i}" placeholder="message text…">${esc(l.text)}</textarea>
+        <div class="row" style="margin-top:6px">
+          <select class="grow" data-lexpr="${i}">${exprOptions(l.expression)}</select>
+          <button class="small" data-lup="${i}" title="move up">↑</button>
+          <button class="small" data-ldown="${i}" title="move down">↓</button>
+          <button class="small danger" data-ldel="${i}" title="remove">✕</button>
+        </div></div>`;
+    });
+    html += `</div><button id="addLine">+ message</button>
+      <label style="margin-top:14px">Response options <span class="muted">(none = cutscene)</span></label><div id="opts">`;
+    n.options.forEach((o, i) => {
+      const isNext = o.next != null;
+      html += `<div class="card" data-oi="${i}">
+        <div class="row"><input type="text" class="grow" data-olabel="${i}" value="${esc(o.label)}" placeholder="option label…">
+          <button class="small" data-oup="${i}" title="move up">↑</button>
+          <button class="small" data-odown="${i}" title="move down">↓</button>
+          <button class="small danger" data-odel="${i}" title="remove">✕</button></div>
+        <div class="row">
+          <select data-otype="${i}"><option value="next"${isNext ? " selected" : ""}>→ go to node</option>` +
+          `<option value="action"${isNext ? "" : " selected"}>⚡ action</option></select>` +
+          (isNext
+            ? `<select class="grow" data-onext="${i}"><option value="">(drag port or pick)</option>${nodeOptions(o.next)}</select>`
+            : `<input type="text" class="grow" data-oaction="${i}" value="${esc(o.action || "")}" list="actions" placeholder="shop / exit…">`) +
+        `</div></div>`;
+    });
+    html += `</div><button id="addOpt">+ option</button>`;
+  } else {
+    html += `<h2>Node</h2><div class="muted">Select a node in the graph, or double-click the canvas to create one.</div>`;
+  }
+
+  const issues = findIssues();
+  html += issues.length
+    ? `<div class="issues">⚠ ${issues.map(esc).join("\n⚠ ")}</div>`
+    : `<div class="hint" style="color:var(--green)">✓ no issues</div>`;
+  html += `<div class="hint">drag node headers to move · drag an option's dot onto a node to connect ·
+    click a wire to disconnect · double-click canvas for a new node · scroll to zoom ·
+    work is autosaved in this browser</div>
+    <datalist id="actions">${KNOWN_ACTIONS.map((a) => `<option value="${a}">`).join("")}</datalist>`;
+
+  panel.innerHTML = html;
+  bindPanel();
+  panel.querySelectorAll("textarea").forEach(autoGrow);
+}
+
+function autoGrow(t) {
+  t.style.height = "auto";
+  t.style.height = t.scrollHeight + "px";
+}
+
+function bindPanel() {
+  $("#cName").addEventListener("input", (e) => { S.name = e.target.value; save(); });
+  $("#cStart").addEventListener("change", (e) => { S.start = e.target.value; save(); renderAll(); });
+
+  // Emotions: click chip = set default, ✕ = remove (lines using it fall back).
+  panel.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", (e) => {
+      if (e.target.dataset.del != null) return;
+      S.defaultExpression = chip.dataset.expr; save(); renderAll();
+    });
+  });
+  panel.querySelectorAll(".chip b").forEach((b) => {
+    b.addEventListener("click", () => {
+      const ex = b.dataset.del;
+      if (S.expressions.length <= 1) return;
+      S.expressions = S.expressions.filter((x) => x !== ex);
+      if (S.defaultExpression === ex) S.defaultExpression = S.expressions[0];
+      for (const n of Object.values(S.nodes))
+        for (const l of n.lines) if (l.expression === ex) l.expression = S.defaultExpression;
+      save(); renderAll();
+    });
+  });
+  const addExpr = () => {
+    const v = $("#newExpr").value.trim();
+    if (v && !S.expressions.includes(v)) { S.expressions.push(v); save(); renderAll(); }
+  };
+  $("#addExpr").addEventListener("click", addExpr);
+  $("#newExpr").addEventListener("keydown", (e) => { if (e.key === "Enter") addExpr(); });
+
+  if (!sel) return;
+  const n = S.nodes[sel];
+
+  $("#nId").addEventListener("change", (e) => renameNode(sel, e.target.value));
+  $("#nStart").addEventListener("click", () => { S.start = sel; save(); renderAll(); });
+  $("#nDel").addEventListener("click", () => {
+    if (confirm(`Delete node "${sel}"?`)) deleteNode(sel);
+  });
+
+  // Lines: text/expression edits update live (graph only, to keep input focus).
+  panel.querySelectorAll("[data-ltext]").forEach((t) => t.addEventListener("input", () => {
+    n.lines[+t.dataset.ltext].text = t.value; autoGrow(t); save(); renderGraph();
+  }));
+  panel.querySelectorAll("[data-lexpr]").forEach((s) => s.addEventListener("change", () => {
+    n.lines[+s.dataset.lexpr].expression = s.value; save(); renderGraph();
+  }));
+  panel.querySelectorAll("[data-ldel]").forEach((b) => b.addEventListener("click", () => {
+    n.lines.splice(+b.dataset.ldel, 1); save(); renderAll();
+  }));
+  panel.querySelectorAll("[data-lup]").forEach((b) => b.addEventListener("click", () => move(n.lines, +b.dataset.lup, -1)));
+  panel.querySelectorAll("[data-ldown]").forEach((b) => b.addEventListener("click", () => move(n.lines, +b.dataset.ldown, 1)));
+  $("#addLine").addEventListener("click", () => {
+    n.lines.push({ text: "", expression: S.defaultExpression }); save(); renderAll();
+  });
+
+  // Options.
+  panel.querySelectorAll("[data-olabel]").forEach((t) => t.addEventListener("input", () => {
+    n.options[+t.dataset.olabel].label = t.value; save(); renderGraph();
+  }));
+  panel.querySelectorAll("[data-otype]").forEach((s) => s.addEventListener("change", () => {
+    const o = n.options[+s.dataset.otype];
+    if (s.value === "next") { delete o.action; o.next = null; }
+    else { delete o.next; o.action = "shop"; }
+    save(); renderAll();
+  }));
+  panel.querySelectorAll("[data-onext]").forEach((s) => s.addEventListener("change", () => {
+    n.options[+s.dataset.onext].next = s.value || null; save(); renderAll();
+  }));
+  panel.querySelectorAll("[data-oaction]").forEach((t) => t.addEventListener("input", () => {
+    n.options[+t.dataset.oaction].action = t.value; save(); renderGraph();
+  }));
+  panel.querySelectorAll("[data-odel]").forEach((b) => b.addEventListener("click", () => {
+    n.options.splice(+b.dataset.odel, 1); save(); renderAll();
+  }));
+  panel.querySelectorAll("[data-oup]").forEach((b) => b.addEventListener("click", () => move(n.options, +b.dataset.oup, -1)));
+  panel.querySelectorAll("[data-odown]").forEach((b) => b.addEventListener("click", () => move(n.options, +b.dataset.odown, 1)));
+  $("#addOpt").addEventListener("click", () => {
+    n.options.push({ label: "", next: null }); save(); renderAll();
+  });
+}
+function move(arr, i, d) {
+  const j = i + d;
+  if (j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  save(); renderAll();
+}
+
+// ── Graph interaction ─────────────────────────────────────────────────────────
+graph.addEventListener("mousedown", (e) => {
+  const port = e.target.closest(".port");
+  if (port) {
+    const [id, oi] = port.dataset.port.split(/:(?=\d+$)/);
+    const w = toWorld(e.clientX, e.clientY);
+    dragEdge = { id, oi: +oi, x: w.x, y: w.y };
+    e.preventDefault();
+    return;
+  }
+  const nodeEl = e.target.closest(".node");
+  if (nodeEl) {
+    const id = nodeEl.dataset.node;
+    if (sel !== id) { sel = id; renderAll(); }
+    if (e.target.closest("header")) {
+      const w = toWorld(e.clientX, e.clientY);
+      dragNode = { id, dx: w.x - S.nodes[id].x, dy: w.y - S.nodes[id].y };
+    }
+    e.preventDefault();
+    return;
+  }
+  const edge = e.target.closest("path[data-edge]");
+  if (edge) return; // handled on click
+  panning = { sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
+  graph.classList.add("panning");
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (dragNode) {
+    const w = toWorld(e.clientX, e.clientY);
+    const n = S.nodes[dragNode.id];
+    n.x = Math.round(w.x - dragNode.dx);
+    n.y = Math.round(w.y - dragNode.dy);
+    const el = nodesDiv.querySelector(`[data-node="${CSS.escape(dragNode.id)}"]`);
+    if (el) { el.style.left = n.x + "px"; el.style.top = n.y + "px"; }
+    drawEdges();
+  } else if (dragEdge) {
+    const w = toWorld(e.clientX, e.clientY);
+    dragEdge.x = w.x; dragEdge.y = w.y;
+    drawEdges();
+  } else if (panning) {
+    pan.x = panning.px + (e.clientX - panning.sx);
+    pan.y = panning.py + (e.clientY - panning.sy);
+    applyTransform();
+  }
+});
+
+window.addEventListener("mouseup", (e) => {
+  if (dragEdge) {
+    const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.classList && el.classList.contains("node"));
+    const o = S.nodes[dragEdge.id].options[dragEdge.oi];
+    if (hit && o) { delete o.action; o.next = hit.dataset.node; }
+    dragEdge = null;
+    save(); renderAll();
+  }
+  if (dragNode) { dragNode = null; save(); drawEdges(); }
+  if (panning) { panning = null; graph.classList.remove("panning"); save(); }
+});
+
+// Click a wire to disconnect that option (it becomes an "exit" action).
+edgesSvg.addEventListener("click", (e) => {
+  const p = e.target.closest("path[data-edge]");
+  if (!p) return;
+  const [id, oi] = p.dataset.edge.split(/:(?=\d+$)/);
+  const o = S.nodes[id] && S.nodes[id].options[+oi];
+  if (o) { delete o.next; o.action = "exit"; save(); renderAll(); }
+});
+
+graph.addEventListener("dblclick", (e) => {
+  if (e.target.closest(".node")) return;
+  const w = toWorld(e.clientX, e.clientY);
+  addNode(Math.round(w.x), Math.round(w.y));
+});
+
+graph.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const k = Math.pow(1.1, -e.deltaY / 100);
+  const nz = Math.min(2.5, Math.max(0.3, zoom * k));
+  const r = graph.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  pan.x = mx - (mx - pan.x) * (nz / zoom);
+  pan.y = my - (my - pan.y) * (nz / zoom);
+  zoom = nz;
+  applyTransform();
+  save();
+}, { passive: false });
+
+window.addEventListener("keydown", (e) => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+  if (e.key === "Delete" && sel && !typing) {
+    if (confirm(`Delete node "${sel}"?`)) deleteNode(sel);
+  }
+});
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+$("#bNew").addEventListener("click", () => {
+  if (confirm("Start a new dialogue? Unexported changes are replaced.")) {
+    S = defaultState(); sel = "intro"; pan = { x: 40, y: 20 }; zoom = 1;
+    save(); renderAll();
+  }
+});
+$("#bImport").addEventListener("click", () => $("#file").click());
+$("#file").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { fromGameJson(JSON.parse(r.result)); save(); renderAll(); }
+    catch (err) { alert("Could not import: " + err.message); }
+  };
+  r.readAsText(f);
+  e.target.value = "";
+});
+$("#bExport").addEventListener("click", download);
+$("#bCopy").addEventListener("click", copyJson);
+$("#bLayout").addEventListener("click", () => { autoLayout(); save(); renderAll(); });
+$("#bAddNode").addEventListener("click", () => {
+  const r = graph.getBoundingClientRect();
+  const w = toWorld(r.left + r.width / 2, r.top + r.height / 3);
+  addNode(Math.round(w.x), Math.round(w.y));
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+function renderAll() { renderGraph(); renderPanel(); save(); }
+restore();
+if (!sel) sel = S.start;
+renderAll();
+</script>
+</body>
+</html>

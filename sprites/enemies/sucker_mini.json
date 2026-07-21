@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "sucker_mini.png",
+    "frameWidth": 192,
+    "frameHeight": 192,
+    "columns": 6,
+    "rows": 1,
+    "frameCount": 6,
+    "format": "keyframes",
+    "rowLabels": [
+      "idle/walk"
+    ],
+    "rowFrameCounts": [
+      6
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "idle/walk",
+      "hitboxes": [
+        {
+          "x": 83,
+          "y": 68,
+          "width": 26,
+          "height": 14
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

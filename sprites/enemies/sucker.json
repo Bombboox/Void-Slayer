@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "sucker.png",
+    "frameWidth": 192,
+    "frameHeight": 192,
+    "columns": 17,
+    "rows": 3,
+    "frameCount": 51,
+    "format": "keyframes",
+    "rowLabels": [
+      "idle/walk",
+      "laser",
+      "plasma_rush"
+    ],
+    "rowFrameCounts": [
+      6,
+      2,
+      17
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "idle/walk",
+      "hitboxes": [
+        {
+          "x": 25,
+          "y": 48,
+          "width": 141,
+          "height": 49
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 17,
+      "col": 0,
+      "row": 1,
+      "action": "laser",
+      "hitboxes": [
+        {
+          "x": 25,
+          "y": 48,
+          "width": 141,
+          "height": 49
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 34,
+      "col": 0,
+      "row": 2,
+      "action": "plasma_rush",
+      "hitboxes": [
+        {
+          "x": 25,
+          "y": 48,
+          "width": 141,
+          "height": 49
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 41,
+      "col": 7,
+      "row": 2,
+      "action": "plasma_rush",
+      "hitboxes": [
+        {
+          "x": 25,
+          "y": 48,
+          "width": 141,
+          "height": 49
+        }
+      ],
+      "hurtboxes": [],
+      "points": [
+        {
+          "name": "plasma_spawn",
+          "x": 96,
+          "y": 67
+        }
+      ]
+    }
+  ]
+}

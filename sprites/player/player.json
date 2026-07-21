@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "player.png",
+    "frameWidth": 192,
+    "frameHeight": 192,
+    "columns": 7,
+    "rows": 4,
+    "frameCount": 28,
+    "format": "keyframes",
+    "rowLabels": [
+      "idle",
+      "run",
+      "airborne",
+      "dashing"
+    ],
+    "rowFrameCounts": [
+      7,
+      4,
+      1,
+      1
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "idle",
+      "hitboxes": [
+        {
+          "x": 89,
+          "y": 79,
+          "width": 14,
+          "height": 43
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 7,
+      "col": 0,
+      "row": 1,
+      "action": "run",
+      "hitboxes": [
+        {
+          "x": 89,
+          "y": 79,
+          "width": 14,
+          "height": 43
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 14,
+      "col": 0,
+      "row": 2,
+      "action": "airborne",
+      "hitboxes": [
+        {
+          "x": 89,
+          "y": 79,
+          "width": 14,
+          "height": 43
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 21,
+      "col": 0,
+      "row": 3,
+      "action": "dashing",
+      "hitboxes": [
+        {
+          "x": 89,
+          "y": 79,
+          "width": 14,
+          "height": 43
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

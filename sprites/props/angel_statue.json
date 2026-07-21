@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "angel_statue.png",
+    "frameWidth": 64,
+    "frameHeight": 128,
+    "columns": 1,
+    "rows": 1,
+    "frameCount": 1,
+    "format": "keyframes",
+    "rowLabels": [
+      ""
+    ],
+    "rowFrameCounts": [
+      1
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "hitboxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 111
+        }
+      ],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}

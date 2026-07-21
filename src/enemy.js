@@ -54,6 +54,8 @@ const MAX_HP = {
   deepblue: C.DEEPBLUE_MAX_HP,
   buh: C.BUH_MAX_HP,
   kisser: C.KISSER_MAX_HP,
+  sucker: C.SUCKER_MAX_HP,
+  sucker_mini: C.SUCKER_MINI_MAX_HP,
 };
 
 export function createEnemy(type, x, y, sprite, extra) {
@@ -108,19 +110,21 @@ export function enemyBoxes(e) {
   return e.boxes || computeBoxes(e);
 }
 
-export function drawEnemy(renderer, e) {
+// `tintOverride` replaces the hit-flash tint when given (e.g. [-1,-1,-1,1] draws
+// the sprite as a pure black silhouette — used for the boss-room dark reveal).
+export function drawEnemy(renderer, e, tintOverride = null) {
   const s = e.sprite;
   const f = currentFrame(e);
   const { spriteX, spriteY } = enemyBoxes(e);
   // Lit-up white flash when recently hit (fades over hitFlash's duration).
   const flash = e.hitFlash > 0 ? e.hitFlash / C.ENEMY_FLASH_DUR : 0;
-  const tint = flash > 0 ? [1, 1, 1, flash * 0.9] : null;
+  const tint = tintOverride ?? (flash > 0 ? [1, 1, 1, flash * 0.9] : null);
   renderer.drawSprite(s.tex, spriteX, spriteY, s.fw, s.fh, f.u0, f.v0, f.u1, f.v1, e.facing < 0, tint);
 }
 
 // ── Update dispatch ─────────────────────────────────────────────────────────
 
-const UPDATERS = { lilguy: updateLilguy, eyefly: updateEyefly, deepblue: updateDeepblue, buh: updateBuh, kisser: updateKisser };
+const UPDATERS = { lilguy: updateLilguy, eyefly: updateEyefly, deepblue: updateDeepblue, buh: updateBuh, kisser: updateKisser, sucker: updateSucker, sucker_mini: updateSuckerMini };
 
 // `shots` is the shared enemy-projectile array (ranged enemies push into it).
 export function updateEnemy(e, dt, tiles, player, shots) {
@@ -736,4 +740,146 @@ export function createKisser(x, y, sprite) {
     action: "idle", mode: "idle", modeTimer: rand(0.4, 0.9),
     fired: false, flameCooldown: 0, touchDmg: C.KISSER_TOUCH_DMG,
   });
+}
+
+// ── Sucker (boss) ────────────────────────────────────────────────────────────
+// Floats near the ceiling of its boss room, drifting to shadow the player, and
+// picks an attack after each hover dwell:
+//   laser       — loops the 2-frame laser clip while calling down repeated vertical
+//                 strikes (a warning line, then a quick beam) at the player's spot.
+//   plasma_rush — plays the clip once; from the plasma_spawn frame it holds the
+//                 pose and streams arcing plasma balls at the player.
+// Starts "dormant" (the blacked-out silhouette in the dark room): it just bobs in
+// place and doesn't interact until the reveal promotes it to "hover".
+
+function hoverSucker(e, player, dt, track) {
+  const bb = e.sprite.bodyBox, room = e.room;
+  e.bobT = (e.bobT || 0) + dt;
+  if (track) {
+    const tx = player.x + C.PW / 2 - bb.w / 2;
+    const min = room.origin.x + 2 * C.TILE;
+    const max = room.origin.x + C.ROOM_W - 2 * C.TILE - bb.w;
+    const d = Math.max(min, Math.min(tx, max)) - e.x;
+    e.x += Math.sign(d) * Math.min(Math.abs(d), C.SUCKER_TRACK_SPEED * dt);
+  }
+  e.y = room.origin.y + C.SUCKER_HOVER_TILES * C.TILE + Math.sin(e.bobT * 1.6) * 8;
+}
+
+const suckerCooldown = () => rand(C.SUCKER_ATTACK_CD_MIN, C.SUCKER_ATTACK_CD_MAX);
+
+function spawnArcPlasma(e, player, shots) {
+  if (!shots) return;
+  const bb = e.sprite.bodyBox;
+  const m = e.plasmaMuzzle ?? { x: e.x + bb.w / 2, y: e.y + bb.h / 2 };
+  const tx = player.x + C.PW / 2 + (Math.random() * 2 - 1) * 30;
+  const ty = player.y + C.PH / 2;
+  // Ballistic solve for a lob that lands on the player after ~T seconds.
+  const T = C.ARC_PLASMA_TIME * rand(0.85, 1.15);
+  shots.push({
+    type: "arcplasma",
+    x: m.x, y: m.y,
+    vx: (tx - m.x) / T,
+    vy: (ty - m.y) / T - 0.5 * C.ARC_PLASMA_GRAVITY * T,
+    life: 5, phase: Math.random() * 6,
+    powerMult: e.powerMult,
+  });
+}
+
+function updateSucker(e, dt, tiles, player, shots) {
+  if (e.mode === "dormant") { // the silhouette: bob in place, touch nothing
+    setAction(e, "idle/walk");
+    advanceAnim(e, dt, C.ENEMY_ANIM_FPS * 0.5);
+    hoverSucker(e, player, dt, false);
+    return;
+  }
+
+  const { dx } = playerDelta(e, player);
+  if (dx !== 0) e.facing = dx >= 0 ? 1 : -1;
+
+  if (e.mode === "hover") {
+    setAction(e, "idle/walk");
+    advanceAnim(e, dt, C.ENEMY_ANIM_FPS);
+    hoverSucker(e, player, dt, true);
+    e.attackTimer -= dt;
+    if (e.attackTimer <= 0) {
+      if (Math.random() < 0.5) { // laser
+        e.mode = "laser";
+        setAction(e, "laser");
+        e.strikesLeft = C.LASER_STRIKES;
+        e.strikeTimer = C.LASER_PAUSE; // the pause before the first warning
+      } else { // plasma rush
+        e.mode = "plasma";
+        setAction(e, "plasma_rush");
+        e.firing = false; e.plasmaMuzzle = null; e.fireTimer = 0;
+        e.plasmaTimer = C.SUCKER_PLASMA_DURATION;
+      }
+    }
+  } else if (e.mode === "laser") {
+    setAction(e, "laser");
+    advanceAnim(e, dt, C.ENEMY_ANIM_FPS); // loops while firing
+    hoverSucker(e, player, dt, false);    // pauses in place
+    e.strikeTimer -= dt;
+    if (e.strikeTimer <= 0) {
+      if (e.strikesLeft > 0) {
+        e.strikesLeft--;
+        // The strike targets where the player is NOW; main.js runs its warn->flash
+        // timing, damage, and drawing (it needs the room's floor).
+        shots.push({
+          type: "laser", x: player.x + C.PW / 2,
+          warn: C.LASER_WARN, flash: C.LASER_FLASH,
+          life: C.LASER_WARN + C.LASER_FLASH,
+          powerMult: e.powerMult,
+        });
+        e.strikeTimer = C.LASER_WARN + C.LASER_FLASH + C.LASER_PAUSE;
+      } else {
+        e.mode = "hover"; setAction(e, "idle/walk");
+        e.attackTimer = suckerCooldown();
+      }
+    }
+  } else { // plasma rush
+    // Play the clip once (no loop); hold the final pose while the stream continues.
+    e.animTime += dt;
+    const clip = e.sprite.clips.plasma_rush;
+    e.frame = Math.min(Math.floor(e.animTime * C.ENEMY_ANIM_FPS), clip.count - 1);
+    hoverSucker(e, player, dt, false);
+    // The plasma_spawn point exists only on its keyframe; capture the muzzle there
+    // and keep firing from it (the sucker holds still for the whole attack).
+    const mp = framePointWorld(e, "plasma_spawn");
+    if (mp) { e.firing = true; e.plasmaMuzzle = mp; }
+    if (e.firing) {
+      e.fireTimer -= dt;
+      if (e.fireTimer <= 0) { spawnArcPlasma(e, player, shots); e.fireTimer = C.SUCKER_PLASMA_INTERVAL; }
+    }
+    e.plasmaTimer -= dt;
+    if (e.plasmaTimer <= 0) {
+      e.mode = "hover"; setAction(e, "idle/walk");
+      e.attackTimer = suckerCooldown();
+    }
+  }
+}
+
+export function createSucker(x, y, sprite, room) {
+  return createEnemy("sucker", x, y, sprite, {
+    action: "idle/walk", mode: "dormant", room,
+    attackTimer: 0, bobT: Math.random() * 6,
+    touchDmg: C.SUCKER_TOUCH_DMG,
+  });
+}
+
+// ── Sucker mini ──────────────────────────────────────────────────────────────
+// A fast flyer that accelerates straight at the player with no braking, so it
+// overshoots, swings around, and comes back — spawned in 1-2s during the fight.
+function updateSuckerMini(e, dt, tiles, player) {
+  const bb = e.sprite.bodyBox;
+  setAction(e, "idle/walk");
+  advanceAnim(e, dt, C.ENEMY_ANIM_FPS);
+  accelToward(e,
+    player.x + C.PW / 2 - bb.w / 2, player.y + C.PH / 2 - bb.h / 2,
+    C.SUCKER_MINI_ACCEL, C.SUCKER_MINI_SPEED, dt);
+  if (Math.abs(e.vx) > 10) e.facing = e.vx > 0 ? 1 : -1;
+  moveFlying(e, bb, tiles, dt);
+}
+
+export function createSuckerMini(x, y, sprite) {
+  return createEnemy("sucker_mini", x, y, sprite, { action: "idle/walk" });
 }

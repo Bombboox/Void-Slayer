@@ -28,6 +28,18 @@ export function addHealNumber(sys, wx, wy, amount) {
   });
 }
 
+// Golden shield-gain number (Gauntlet of the Soulstealer) — drawn beside the
+// green heal number so both visibly land at once.
+export function addShieldNumber(sys, wx, wy, amount) {
+  sys.list.push({
+    x: wx, y: wy,
+    vx: (Math.random() * 2 - 1) * 12,
+    amount: Math.max(1, Math.round(amount)),
+    crit: false, heal: false, shield: true,
+    life: 0.75, maxLife: 0.75,
+  });
+}
+
 export function updateDamageNumbers(sys, dt) {
   for (const d of sys.list) {
     d.y -= 44 * dt;      // drift upward (world units)
@@ -51,14 +63,14 @@ export function drawDamageNumbers(ctx, sys, project, statsImg) {
     // pop in fast, hold, fade out over the last 45%
     const alpha = t > 0.45 ? 1 : t / 0.45;
     const size = d.crit ? 27 : 15;
-    const txt = d.heal ? `+${d.amount}` : d.crit ? `${d.amount}!` : `${d.amount}`;
+    const txt = d.heal || d.shield ? `+${d.amount}` : d.crit ? `${d.amount}!` : `${d.amount}`;
 
     ctx.globalAlpha = alpha;
     ctx.font = `bold ${size}px "Courier New", ui-monospace, monospace`;
     ctx.lineWidth = d.crit ? 4 : 3;
     ctx.strokeStyle = "rgba(0,0,0,0.9)";
     ctx.strokeText(txt, s.sx, s.sy);
-    ctx.fillStyle = d.heal ? "#5ae07a" : d.crit ? "#ff5a3c" : "#ffe066";
+    ctx.fillStyle = d.heal ? "#5ae07a" : d.shield ? "#ffd34d" : d.crit ? "#ff5a3c" : "#ffe066";
     ctx.fillText(txt, s.sx, s.sy);
 
     if (d.crit && statsImg) {

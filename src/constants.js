@@ -9,6 +9,10 @@ export const WINDOW_H = 600;
 // ── Player geometry ───────────────────────────────────────────────────────────
 export const PW = 20.0;
 export const PH = 28.0;
+// Player sprite: the 192px frame is drawn at this scale (its bodyBox is anchored,
+// feet-centered, onto the PW×PH physics box), animating at PLAYER_ANIM_FPS.
+export const PLAYER_SPRITE_SCALE = 1.0;
+export const PLAYER_ANIM_FPS     = 10;
 
 // ── Health & damage ───────────────────────────────────────────────────────────
 export const PLAYER_MAX_HP   = 100;
@@ -18,12 +22,18 @@ export const BULLET_DAMAGE   = 10;   // the player's own shots, dealt to enemies
 
 // Enemies scale linearly with the player's level: +10% HP and damage per level.
 export const ENEMY_SCALE_PER_LEVEL = 0.10;
+// ...and multiplicatively with the floor: x1.5 HP & damage per floor past the
+// first (compounding) — later floors are meant to feel significantly harder.
+export const ENEMY_FLOOR_GROWTH = 1.5;
 
 // ── Progression ───────────────────────────────────────────────────────────────
 // EXP to go from level x to x+1 is 100 * 1.15^x (levels start at 0).
 export const EXP_BASE   = 100;
 export const EXP_GROWTH = 1.15;
 export const EXP_REWARD = { lilguy: 22, eyefly: 26, deepblue: 45 };
+// EXP payouts (kills, mini-bosses, bosses) grow with the floor so leveling
+// keeps pace with the enemies' floor scaling.
+export const EXP_FLOOR_GROWTH = 1.5;
 
 // Hearts and keys are made ~2.5x rarer than their rolled amounts (from every
 // source): each unit only actually drops this fraction of the time.
@@ -47,7 +57,7 @@ export const SPEED_PER_POINT = 0.01;   // +4% run speed AND dash distance per po
 export const ITEM_POINTS = 5;            // an item ≈ this many skill points
 export const ATK_SPEED_BULLET = 0.15;    // +15% bullet speed per attack_speed item
 export const ATK_SPEED_PIERCE_PER = 2;   // every N attack_speed items => +1 pierce
-export const LIFESTEAL_PER_ITEM = 0.06;  // heal 6% of damage dealt, per lifesteal item
+export const LIFESTEAL_PER_ITEM = 0.02;  // heal 2% of damage dealt, per lifesteal item
 
 // ── Horizontal movement ───────────────────────────────────────────────────────
 export const GROUND_ACCEL = 2000.0;
@@ -55,6 +65,12 @@ export const GROUND_FRIC   = 1600.0;
 export const AIR_ACCEL     = 1200.0;
 export const AIR_FRIC      = 400.0;
 export const MAX_RUN       = 200.0;
+// The speed STAT keeps stacking for abilities that scale off it, but actual
+// run/dash speed HARD-caps at +30% (buffs included) — beyond that the
+// character gets too hard to control. The stat also converts at half rate
+// into effective speed: +60% stat -> +30% effective.
+export const MOVE_SPEED_CAP = 0.30;
+export const MOVE_SPEED_EFF = 0.5;
 
 // ── Jump ──────────────────────────────────────────────────────────────────────
 export const JUMP_SPEED     = -350.0;
@@ -148,8 +164,14 @@ export const SWINGER_ANGLE   = 0.72; // release amplitude from straight-down (ra
 export const SWINGER_LINK    = 30;   // length of each chain link (px)
 export const SWINGER_LAG     = 3;    // chain whip: frames each link lags the one above
 
+// ── Special rooms (angel / maw) ───────────────────────────────────────────────
+export const FLOOR_ANGEL_CHANCE = 0.5;  // chance a floor contains an angel room
+// (a maw crafting room is guaranteed on every floor)
+export const ANGEL_HEAL_FRAC    = 0.5;  // angel statue heals this fraction of max HP (once)
+export const MAW_FPS            = 3;     // maw.png is a 2-frame idle animation
+
 // ── Battle rooms (flat arena for a mini-boss) ─────────────────────────────────
-export const BATTLE_ROOM_CHANCE = 0.14; // chance a non-origin room is a battle arena
+export const FLOOR_BATTLE_CHANCE = 0.5; // chance a floor contains a battle arena at all
 export const LIGHT_COL_TILES    = 3;    // width of the central holy light column (tiles)
 export const SMOKE_FRAMES       = 4;    // smoke.png is a 4-frame 32x32 strip
 export const SMOKE_FPS          = 8;
@@ -161,7 +183,7 @@ export const BATTLE_REINFORCE_PAIR = 2;    // enemies per drop
 // ── Kisser (mini-boss) ────────────────────────────────────────────────────────
 export const KISSER_MAX_HP      = 1395;  // beefy mini-boss (1.5x, then 1.5x again)
 export const KISSER_SPEED       = 74;
-export const KISSER_MELEE_RANGE = 120;   // within this: cleaver / punch (closes in first)
+export const KISSER_MELEE_RANGE = 180;   // within this: cleaver / punch (closes in first)
 export const KISSER_FLAME_RANGE = 1000;  // beyond melee (up to this): flame
 export const KISSER_ATTACK_CD   = 0.7;   // pause between attacks
 export const KISSER_FLAME_CD    = 7.0;   // extra cooldown on the flame attack alone
@@ -189,6 +211,54 @@ export const FLAME_SIZE_MAX      = 24;
 export const FLAME_BOUNCE_MAX    = 3;     // ground bounces before it fizzles out
 export const FLAME_RESTITUTION   = 0.55;  // bounce energy kept
 
+// ── Boss rooms (dark reveal + the sucker fight) ───────────────────────────────
+// One boss room is guaranteed per floor, as a far dead-end leaf. The room starts
+// pitch dark with only the boss's silhouette visible; walking far enough in seals
+// the entrance, plays the reveal (scream + light-up), and starts the fight. The
+// far wall hides a floor-level exit (smoke-sealed until victory) that leads to a
+// brand-new floor, Binding-of-Isaac style.
+export const BOSS_TRIGGER_FRAC  = 0.42;  // how far across the room starts the reveal
+export const BOSS_REVEAL_TIME   = 2.2;   // seconds of scream/shake while lights come up
+export const BOSS_DARK_ALPHA    = 0.86;  // darkness overlay strength while unrevealed
+export const BOSS_EXP_REWARD    = KISSER_EXP_REWARD * 1.5; // 1.5x the battle-room payout
+
+// ── Sucker (boss) ─────────────────────────────────────────────────────────────
+export const SUCKER_MAX_HP        = 2400;
+export const SUCKER_TOUCH_DMG     = 26;
+export const SUCKER_HOVER_TILES   = 2.2;  // hover height below the ceiling (tiles)
+export const SUCKER_TRACK_SPEED   = 70;   // horizontal drift speed toward the player
+// Attacks are picked randomly; with a ~3.5s attack this lands near one attack ~7s.
+export const SUCKER_ATTACK_CD_MIN = 2.8;  // hover time between attacks (min)
+export const SUCKER_ATTACK_CD_MAX = 4.2;  // hover time between attacks (max)
+
+// Laser attack: repeated vertical strikes — a beat of stillness, a thin warning
+// line at the player's position, then a quick bright beam (like green lightning).
+export const LASER_STRIKES = 3;
+export const LASER_PAUSE   = 0.55;  // beat between strikes
+export const LASER_WARN    = 0.7;   // warning-line duration before the flash
+export const LASER_FLASH   = 0.16;  // beam duration
+export const LASER_W       = 22;    // beam width (px); the warning line is thinner
+export const LASER_DMG     = 30;
+
+// Plasma rush attack: the clip plays once; from the plasma_spawn frame on, lobbed
+// plasma balls stream toward the player (arcing under gravity, exploding on impact).
+export const SUCKER_PLASMA_DURATION = 3.2;   // total firing window
+export const SUCKER_PLASMA_INTERVAL = 0.22;  // seconds between balls
+export const ARC_PLASMA_GRAVITY     = 700;
+export const ARC_PLASMA_TIME        = 0.9;   // nominal flight time to the player
+export const ARC_PLASMA_SIZE       = 14;
+export const ARC_PLASMA_DMG        = 16;    // direct hit
+export const ARC_EXPLOSION_RADIUS  = 52;
+export const ARC_EXPLOSION_DMG     = 18;    // splash on impact
+
+// ── Sucker mini (spawned during the boss fight) ───────────────────────────────
+// Flies at the player with acceleration-based movement (overshoots, loops back).
+export const SUCKER_MINI_MAX_HP = 45;    // eyefly-like stats
+export const SUCKER_MINI_ACCEL  = 520;
+export const SUCKER_MINI_SPEED  = 250;
+export const MINI_SPAWN_MIN     = 4.0;   // seconds between spawn waves (min)
+export const MINI_SPAWN_MAX     = 8.0;   // seconds between spawn waves (max)
+
 // ── Plasma (enemy energy projectile) ──────────────────────────────────────────
 export const PLASMA_SPEED    = 300.0;
 export const PLASMA_SIZE     = 12.0;
@@ -210,7 +280,9 @@ export const ROOM_ROWS = 19;            // interior 35 x 17 (35 = 5..7 scenarios
 export const ROOM_W    = ROOM_COLS * TILE; // 1184
 export const ROOM_H    = ROOM_ROWS * TILE; // 608
 export const DOOR_TILES = 3;            // width of a door opening, in tiles
-export const DOOR_CHANCE = 0.55;        // chance an undecided side gets a door
+// A floor is a finite Binding-of-Isaac-style cluster of this many rooms.
+export const FLOOR_ROOMS_MIN = 14;
+export const FLOOR_ROOMS_MAX = 16;
 export const TRANSITION_TIME = 0.45;    // seconds for the room-slide
 export const VIEW_MARGIN = 1.08;        // >1 leaves a little space around the room
 

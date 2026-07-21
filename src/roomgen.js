@@ -199,7 +199,9 @@ function roomColor(gx, gy) {
 // Returns an array of solid tiles in WORLD space: { x, y, w, h, r, g, b }.
 // ─────────────────────────────────────────────────────────────────────────────
 export function generateRoomTiles(room) {
+  if (room.bossRoom) return generateBossRoom(room);
   if (room.battle) return generateBattleRoom(room);
+  if (room.special) return generateSpecialRoom(room);
   const grid = makeGrid();
 
   // Perimeter walls.
@@ -427,6 +429,145 @@ function generateBattleRoom(room) {
   // Smoke fills the right (boss) side, hiding where the kisser emerges. The left
   // (entrance) only gets sealed with smoke once the fight starts.
   room.smoke = { left: false, right: true };
+
+  return gridToTiles(grid, room);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Boss room: a flat, open arena, fully walled. The entrance door sits at the usual
+// mid-wall height (matching its neighbor) with a ledge + staircase hugging that
+// wall; the rest of the floor is completely clear for the fight. The opposite wall
+// has a floor-level opening — the way down to the NEXT floor — sealed by smoke
+// until the boss is dead. Mirrors to fit either a left or right entrance.
+// ─────────────────────────────────────────────────────────────────────────────
+function generateBossRoom(room) {
+  const grid = makeGrid();
+  for (let c = 0; c < COLS; c++) { grid[0][c] = true; grid[ROWS - 1][c] = true; }
+  for (let r = 0; r < ROWS; r++) { grid[r][0] = true; grid[r][COLS - 1] = true; }
+
+  const entCol = room.entrance === "left" ? 0 : COLS - 1;
+  const exitCol = room.entrance === "left" ? COLS - 1 : 0;
+
+  // Entrance door (mid-height, matching the neighbor) + its ledge and a staircase
+  // back up to it, both kept against the entrance wall so the arena stays open.
+  for (let r = CR - HALF_DOOR; r <= CR + HALF_DOOR; r++) grid[r][entCol] = false;
+  const l = ledgeFor(room.entrance);
+  placePlat(grid, l.platRow, l.c0, l.c1);
+  // Always the compact zig-zag chimney (not a random style): the sprawling styles
+  // would eat a third of the floor, and this arena must stay flat and open.
+  stairZigzag(grid, { standRow: l.platRow - 1, c0: l.c0, c1: l.c1 },
+    room.entrance === "left" ? 1 : -1);
+
+  // Floor-level exit opening on the far wall (3 tiles tall, standing on the floor).
+  const exitR0 = ROWS - 4, exitR1 = ROWS - 2;
+  for (let r = exitR0; r <= exitR1; r++) grid[r][exitCol] = false;
+
+  const ox = room.origin.x, oy = room.origin.y;
+  room.floorTop = oy + (ROWS - 1) * TILE;
+  room.doorTop = CR - HALF_DOOR; room.doorBot = CR + HALF_DOOR;
+  room.exitRows = { r0: exitR0, r1: exitR1 };
+
+  // Eerie green wall torches — drawn only once the fight lights the room up.
+  room.breakables = [];
+  const torch = (col, r) => room.breakables.push({
+    kind: "torch", x: ox + col * TILE, y: oy + r * TILE, w: TILE, h: TILE,
+    hp: 1, variant: 0, tint: [0.45, 1.0, 0.5], phase: Math.random() * 4,
+  });
+  torch(3, 4); torch(COLS - 4, 4);
+  torch(3, ROWS - 6); torch(COLS - 4, ROWS - 6);
+
+  // No clutter, hazards, chests, or regular enemy spawns in the arena.
+  room.debris = []; room.spawnCols = []; room.chest = null;
+  room.spikes = []; room.swingers = [];
+  room.smoke = { entrance: false, exit: true }; // exit sealed until the boss falls
+  room.bossState = "dark"; // dark -> reveal -> fight -> won
+
+  return gridToTiles(grid, room);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Special rooms: a flat, clean room (no scenarios / hazards / enemies) built around
+// a single interactable — the maw crafting station, or the angel statue flanked by
+// two silver chests. Doors are side entrances only (see world.js), so the floor stays
+// clear for the contents; door ledges + a reachability staircase let you climb back
+// out. Torches are unique per type: white in the angel room, red in the maw room.
+// ─────────────────────────────────────────────────────────────────────────────
+function generateSpecialRoom(room) {
+  const grid = makeGrid();
+  for (let c = 0; c < COLS; c++) { grid[0][c] = true; grid[ROWS - 1][c] = true; }
+  for (let r = 0; r < ROWS; r++) { grid[r][0] = true; grid[r][COLS - 1] = true; }
+
+  // Carve the (single, side) door and place its ledge.
+  const d = room.doors;
+  if (d.left)   for (let r = CR - HALF_DOOR; r <= CR + HALF_DOOR; r++) grid[r][0] = false;
+  if (d.right)  for (let r = CR - HALF_DOOR; r <= CR + HALF_DOOR; r++) grid[r][COLS - 1] = false;
+  if (d.top)    for (let c = CC - HALF_DOOR; c <= CC + HALF_DOOR; c++) grid[0][c] = false;
+  if (d.bottom) for (let c = CC - HALF_DOOR; c <= CC + HALF_DOOR; c++) grid[ROWS - 1][c] = false;
+  for (const side of ["left", "right", "top"]) {
+    if (!d[side]) continue;
+    const l = ledgeFor(side);
+    placePlat(grid, l.platRow, l.c0, l.c1);
+  }
+
+  // Guarantee each (non-bottom) door is reachable from the flat floor via a staircase.
+  for (let pass = 0; pass < 2; pass++) {
+    const surfaces = extractSurfaces(grid);
+    const reachable = floodReach(surfaces);
+    let anyBuilt = false;
+    for (const side of ["left", "right", "top"]) {
+      if (!d[side]) continue;
+      const l = ledgeFor(side);
+      const ledgeStandRow = l.platRow - 1;
+      const reached = surfaces.some(
+        (s) => reachable.has(s) && s.standRow === ledgeStandRow && s.c0 <= l.c1 && s.c1 >= l.c0
+      );
+      if (reached) continue;
+      anyBuilt = true;
+      const awayDir = side === "left" ? 1 : side === "right" ? -1 : (Math.random() < 0.5 ? 1 : -1);
+      const target = { standRow: ledgeStandRow, c0: l.c0, c1: l.c1 };
+      if (pass === 1) clearChimneyStrip(grid, target, awayDir);
+      buildStair(grid, target, awayDir);
+    }
+    if (!anyBuilt) break;
+  }
+
+  const ox = room.origin.x, oy = room.origin.y;
+  const floorTop = oy + (ROWS - 1) * TILE;
+  const cx = ox + (COLS / 2) * TILE; // room center x
+
+  // No clutter / hazards / enemies.
+  room.debris = []; room.spawnCols = []; room.spikes = []; room.swingers = [];
+  room.chest = null; room.chests = []; room.maw = null; room.angel = null; room.npc = null;
+
+  // Symmetric wall torches, unique color per room type.
+  const torchTint = room.special === "angel" ? [1.0, 1.0, 1.0] : [1.0, 0.28, 0.2]; // white / red
+  room.breakables = [];
+  const torch = (col, r) => room.breakables.push({
+    kind: "torch", x: ox + col * TILE, y: oy + r * TILE, w: TILE, h: TILE,
+    hp: 1, variant: 0, tint: torchTint.slice(), phase: Math.random() * 4,
+  });
+  torch(2, 4); torch(COLS - 3, 4);
+  torch(2, ROWS - 6); torch(COLS - 3, ROWS - 6);
+
+  if (room.special === "maw") {
+    // 64x32 station drawn at 2x (128x64, i.e. 4x2 tiles) resting on the floor, centered.
+    const mw = 128, mh = 64;
+    room.maw = { x: cx - mw / 2, y: floorTop - mh, w: mw, h: mh };
+    // The shopkeeper NPC idles a few tiles right of the maw. The rect is its BODY
+    // box (18x57, from shopkeeper.json's hitbox) resting on the floor; main.js
+    // anchors the full 192px frame onto it for drawing and V-interaction.
+    room.npc = { kind: "shopkeeper", x: cx + 5 * TILE - 9, y: floorTop - 57, w: 18, h: 57 };
+  } else { // angel
+    // 64x128 statue centered. Its angel_statue.json hitbox spans y 0..111 of the 128px
+    // frame, so rest that hitbox bottom on the floor (the frame's empty base hangs below).
+    const ANGEL_HIT_BOTTOM = 111;
+    room.angel = { x: cx - 32, y: floorTop - ANGEL_HIT_BOTTOM, w: 64, h: 128, used: false };
+    const chest = (px) => ({
+      kind: "silver", x: px, y: floorTop - 64, w: 64, h: 64,
+      opened: false, animT: 0, phase: Math.random() * 4,
+    });
+    room.chests = [chest(cx - 32 - 5 * TILE), chest(cx - 32 + 5 * TILE)];
+  }
 
   return gridToTiles(grid, room);
 }

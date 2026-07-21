@@ -31,7 +31,7 @@ export function updateHealthBar(hb, dt, targetFrac) {
 // Render the liquid at the sprite's NATIVE resolution (so it's chunky/pixelated
 // when scaled up), with per-column crisp fill, a wavy surface, and simple shading
 // (depth gradient, directional light left→dark right, and a bright meniscus).
-function renderLiquid(hb, nw, nh, frac) {
+function renderLiquid(hb, nw, nh, frac, grayFrac = 0, overFrac = 0) {
   if (!hb._buf || hb._buf.width !== nw || hb._buf.height !== nh) {
     hb._buf = document.createElement("canvas");
     hb._buf.width = nw; hb._buf.height = nh;
@@ -39,7 +39,7 @@ function renderLiquid(hb, nw, nh, frac) {
   }
   const b = hb._bctx;
   b.clearRect(0, 0, nw, nh);
-  if (frac <= 0.001) return hb._buf;
+  if (frac <= 0.001 && grayFrac <= 0.001) return hb._buf;
 
   const topY = nh - frac * nh;
   const amp = Math.max(1, nh * 0.03);
@@ -67,6 +67,25 @@ function renderLiquid(hb, nw, nh, frac) {
   b.fillStyle = gl; b.fillRect(0, 0, nw, nh);
   b.globalCompositeOperation = "source-over";
 
+  // Blood Reservoir overheal: the top of the liquid glows gold, one band per
+  // point of overfill (overFrac of the sprite height, sitting on the surface).
+  if (overFrac > 0.001) {
+    const overPx = Math.max(1, Math.round(overFrac * nh));
+    b.fillStyle = "rgba(255,205,80,0.85)";
+    for (let x = 0; x < nw; x++) if (surf[x] < nh) b.fillRect(x, surf[x], 1, Math.min(overPx, nh - surf[x]));
+  }
+
+  // Obsidian Heart: banked gray health floats above the red as a smoky band —
+  // life that will flow back if you stay out of trouble.
+  if (grayFrac > 0.001) {
+    const grayPx = Math.max(1, Math.round(grayFrac * nh));
+    b.fillStyle = "rgba(150,155,165,0.75)";
+    for (let x = 0; x < nw; x++) {
+      const top = Math.max(0, surf[x] - grayPx);
+      b.fillRect(x, top, 1, surf[x] - top);
+    }
+  }
+
   // Bright meniscus highlight along the surface.
   b.fillStyle = "rgba(255,200,200,0.9)";
   for (let x = 0; x < nw; x++) if (surf[x] < nh) b.fillRect(x, surf[x], 1, 1);
@@ -75,8 +94,10 @@ function renderLiquid(hb, nw, nh, frac) {
 }
 
 // Draw the vial `img` at (x, y) sized w x h, filled from the bottom with red to
-// `hb.displayed` of the height, then the sprite on top.
-export function drawHealthBar(ctx, hb, x, y, w, h, img) {
+// `hb.displayed` of the height, then the sprite on top. `grayFrac` (Obsidian
+// Heart) and `overFrac` (Blood Reservoir overheal) add their bands, as
+// fractions of max HP.
+export function drawHealthBar(ctx, hb, x, y, w, h, img, grayFrac = 0, overFrac = 0) {
   let ox = 0, oy = 0;
   if (hb.shake > 0.01) {
     ox = (Math.random() * 2 - 1) * hb.shake * 0.4;
@@ -84,7 +105,7 @@ export function drawHealthBar(ctx, hb, x, y, w, h, img) {
   }
 
   const frac = Math.max(0, Math.min(1, hb.displayed));
-  const buf = renderLiquid(hb, img.width, img.height, frac);
+  const buf = renderLiquid(hb, img.width, img.height, frac, grayFrac, overFrac);
 
   ctx.save();
   ctx.translate(ox, oy);

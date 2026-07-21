@@ -1,0 +1,480 @@
+{
+  "meta": {
+    "tool": "Boox's Hitbox Maker",
+    "image": "full_items.png",
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "columns": 18,
+    "rows": 42,
+    "frameCount": 756,
+    "format": "keyframes",
+    "rowLabels": [
+      "DDL",
+      "DDD",
+      "HHA",
+      "SSD",
+      "PAD",
+      "HHL",
+      "LLL",
+      "DCC",
+      "PSC",
+      "AAA",
+      "AAC",
+      "AAD",
+      "AAH",
+      "AAL",
+      "AAP",
+      "AAS",
+      "CCC",
+      "CCD",
+      "DDH",
+      "DDP",
+      "DDS",
+      "DHH",
+      "HHH",
+      "ACC",
+      "ACD",
+      "ACH",
+      "ACL",
+      "SSS",
+      "DPS",
+      "ACP",
+      "ACS",
+      "ADD",
+      "ADH",
+      "ADL",
+      "PPP",
+      "ADS",
+      "AHH",
+      "AHL",
+      "AHP",
+      "AHS",
+      "ALL",
+      "CSS"
+    ],
+    "rowFrameCounts": [
+      3,
+      3,
+      9,
+      9,
+      8,
+      6,
+      8,
+      8,
+      3,
+      8,
+      5,
+      8,
+      9,
+      10,
+      10,
+      8,
+      2,
+      18,
+      9,
+      8,
+      8,
+      8,
+      13,
+      18,
+      4,
+      8,
+      12,
+      15,
+      6,
+      8,
+      15,
+      8,
+      8,
+      8,
+      9,
+      6,
+      12,
+      9,
+      4,
+      8,
+      11,
+      18
+    ]
+  },
+  "frames": [
+    {
+      "index": 0,
+      "col": 0,
+      "row": 0,
+      "action": "DDL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 18,
+      "col": 0,
+      "row": 1,
+      "action": "DDD",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 36,
+      "col": 0,
+      "row": 2,
+      "action": "HHA",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 54,
+      "col": 0,
+      "row": 3,
+      "action": "SSD",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 72,
+      "col": 0,
+      "row": 4,
+      "action": "PAD",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 90,
+      "col": 0,
+      "row": 5,
+      "action": "HHL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 108,
+      "col": 0,
+      "row": 6,
+      "action": "LLL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 126,
+      "col": 0,
+      "row": 7,
+      "action": "DCC",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 144,
+      "col": 0,
+      "row": 8,
+      "action": "PSC",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 162,
+      "col": 0,
+      "row": 9,
+      "action": "AAA",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 180,
+      "col": 0,
+      "row": 10,
+      "action": "AAC",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 198,
+      "col": 0,
+      "row": 11,
+      "action": "AAD",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 216,
+      "col": 0,
+      "row": 12,
+      "action": "AAH",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 234,
+      "col": 0,
+      "row": 13,
+      "action": "AAL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 252,
+      "col": 0,
+      "row": 14,
+      "action": "AAP",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 270,
+      "col": 0,
+      "row": 15,
+      "action": "AAS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 288,
+      "col": 0,
+      "row": 16,
+      "action": "CCC",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 306,
+      "col": 0,
+      "row": 17,
+      "action": "CCD",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 324,
+      "col": 0,
+      "row": 18,
+      "action": "DDH",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 342,
+      "col": 0,
+      "row": 19,
+      "action": "DDP",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 360,
+      "col": 0,
+      "row": 20,
+      "action": "DDS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 378,
+      "col": 0,
+      "row": 21,
+      "action": "DHH",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 396,
+      "col": 0,
+      "row": 22,
+      "action": "HHH",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 414,
+      "col": 0,
+      "row": 23,
+      "action": "ACC",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 432,
+      "col": 0,
+      "row": 24,
+      "action": "ACD",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 450,
+      "col": 0,
+      "row": 25,
+      "action": "ACH",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 468,
+      "col": 0,
+      "row": 26,
+      "action": "ACL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 486,
+      "col": 0,
+      "row": 27,
+      "action": "SSS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 504,
+      "col": 0,
+      "row": 28,
+      "action": "DPS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 522,
+      "col": 0,
+      "row": 29,
+      "action": "ACP",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 540,
+      "col": 0,
+      "row": 30,
+      "action": "ACS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 558,
+      "col": 0,
+      "row": 31,
+      "action": "ADD",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 576,
+      "col": 0,
+      "row": 32,
+      "action": "ADH",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 594,
+      "col": 0,
+      "row": 33,
+      "action": "ADL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 612,
+      "col": 0,
+      "row": 34,
+      "action": "PPP",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 630,
+      "col": 0,
+      "row": 35,
+      "action": "ADS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 648,
+      "col": 0,
+      "row": 36,
+      "action": "AHH",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 666,
+      "col": 0,
+      "row": 37,
+      "action": "AHL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 684,
+      "col": 0,
+      "row": 38,
+      "action": "AHP",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 702,
+      "col": 0,
+      "row": 39,
+      "action": "AHS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 720,
+      "col": 0,
+      "row": 40,
+      "action": "ALL",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    },
+    {
+      "index": 738,
+      "col": 0,
+      "row": 41,
+      "action": "CSS",
+      "hitboxes": [],
+      "hurtboxes": [],
+      "points": []
+    }
+  ]
+}
